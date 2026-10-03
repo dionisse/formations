@@ -82,3 +82,67 @@ window.addEventListener('resize', () => {
 });
 
 activateSequence('1');
+
+const roleWorkshop = document.querySelector('#atelier-roles');
+if (roleWorkshop) {
+  const scenarios = [
+    {
+      question: 'Une pièce manque au dossier et bloque votre contrôle. Qui doit être alerté en premier ?',
+      options: [['Le client directement', 'client'], ['Le Chef de mission', 'chef'], ['Personne, on avance quand même', 'personne']],
+      answer: 'chef',
+      success: 'Exact. L’assistant fait remonter toute difficulté au Chef de mission, qui organise la suite et décide de l’escalade nécessaire.'
+    },
+    {
+      question: 'Le planning et le budget d’une nouvelle mission doivent être préparés. Qui en prend la responsabilité ?',
+      options: [['Le Directeur de mission', 'directeur'], ['Le Stagiaire', 'stagiaire'], ['Le personnel administratif seul', 'admin']],
+      answer: 'directeur',
+      success: 'Exact. Le Directeur de mission transforme le besoin en planning, ressources et livrables, puis le fait approuver au bon niveau.'
+    },
+    {
+      question: 'Une réunion client doit être confirmée et les rapports mis en forme. Qui apporte son appui ?',
+      options: [['L’Assistant uniquement', 'assistant'], ['Le Secrétaire / personnel administratif', 'admin'], ['Le Stagiaire seul', 'stagiaire']],
+      answer: 'admin',
+      success: 'Exact. L’appui administratif fluidifie les rendez-vous, les courriers, la mise en forme et la circulation des informations.'
+    }
+  ];
+  const count = roleWorkshop.querySelector('#scenario-count');
+  const question = roleWorkshop.querySelector('#scenario-question');
+  const options = roleWorkshop.querySelector('#scenario-options');
+  const feedback = roleWorkshop.querySelector('#scenario-feedback');
+  const nextCase = roleWorkshop.querySelector('#next-case');
+  const dots = roleWorkshop.querySelector('#scenario-dots');
+  let currentScenario = 0;
+
+  function renderScenario() {
+    const scenario = scenarios[currentScenario];
+    count.textContent = `CAS ${String(currentScenario + 1).padStart(2, '0')} / ${String(scenarios.length).padStart(2, '0')}`;
+    question.textContent = scenario.question;
+    feedback.textContent = '';
+    feedback.className = 'scenario-feedback';
+    nextCase.hidden = true;
+    nextCase.innerHTML = currentScenario === scenarios.length - 1 ? 'Rejouer l’atelier <span>↻</span>' : 'Cas suivant <span>→</span>';
+    options.innerHTML = scenario.options.map(([label, value]) => `<button class="scenario-option" type="button" data-answer="${value}">${label}</button>`).join('');
+    dots.innerHTML = scenarios.map((_, index) => `<span class="scenario-dot ${index === currentScenario ? 'active' : index < currentScenario ? 'done' : ''}"></span>`).join('');
+    options.querySelectorAll('.scenario-option').forEach((option) => {
+      option.addEventListener('click', () => {
+        if (option.dataset.answer === scenario.answer) {
+          option.classList.add('correct');
+          options.querySelectorAll('.scenario-option').forEach((button) => { button.disabled = true; });
+          feedback.textContent = scenario.success;
+          feedback.classList.add('success');
+          nextCase.hidden = false;
+        } else {
+          option.classList.add('wrong');
+          feedback.textContent = 'Pas tout à fait. Relisez le périmètre de ce rôle et essayez encore.';
+          feedback.classList.add('error');
+        }
+      });
+    });
+  }
+
+  nextCase.addEventListener('click', () => {
+    currentScenario = (currentScenario + 1) % scenarios.length;
+    renderScenario();
+  });
+  renderScenario();
+}
