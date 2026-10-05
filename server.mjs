@@ -8,7 +8,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
-const AUTH_BYPASS = process.env.AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
+// Local development skips authentication by default; production and AUTH_BYPASS=false keep it enabled.
+const AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AUTH_BYPASS !== 'false';
 const DEVELOPMENT_USER = { email: 'developpement@fiscale.local', name: 'Développement local' };
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
