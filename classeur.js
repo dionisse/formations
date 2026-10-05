@@ -11,9 +11,20 @@ let currentFolderId = '01';
 const seenFolders = new Set();
 
 const request = async (url, options = {}) => {
-  const response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Une erreur est survenue.');
+  let response;
+  try {
+    response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+  } catch {
+    throw new Error('Le serveur sécurisé est inaccessible. Lancez « npm run server » puis rechargez cette page.');
+  }
+  const contentType = response.headers.get('content-type') || '';
+  const payload = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
+  if (!response.ok) {
+    if (response.status === 404 || !contentType.includes('application/json')) {
+      throw new Error('Cette page n’est pas reliée au serveur sécurisé. Lancez « npm run server » puis ouvrez http://localhost:4173.');
+    }
+    throw new Error(payload.error || `La requête a échoué (${response.status}).`);
+  }
   return payload;
 };
 

@@ -8,10 +8,10 @@ Le projet nécessite Node.js 18 ou une version plus récente.
 
 ```bash
 npm install
-npm run server
+npm run dev
 ```
 
-Puis ouvrir [http://localhost:4173](http://localhost:4173).
+`npm run server` lance également le même serveur sécurisé. Puis ouvrir [http://localhost:4173](http://localhost:4173).
 
 Le serveur écoute par défaut sur `0.0.0.0:4173`. Le port peut être modifié :
 
