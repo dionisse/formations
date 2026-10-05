@@ -17,6 +17,9 @@ const ATTEMPT_WINDOW = 15 * 60 * 1000;
 const participantsPath = process.env.PARTICIPANTS_FILE || path.join(ROOT, 'config', 'participants.json');
 const exampleParticipantsPath = path.join(ROOT, 'config', 'participants.example.json');
 const dossierPath = path.join(ROOT, 'private', 'dossier-data.json');
+const fileStoragePath = path.join(ROOT, 'storage', 'dossier-files');
+const fileIndexPath = path.join(ROOT, 'storage', 'file-index.json');
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const sessions = new Map();
 const loginAttempts = new Map();
 const MIME_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -27,6 +30,50 @@ const json = (res, status, payload, headers = {}) => {
 };
 
 const readJson = async (file) => JSON.parse(await fs.readFile(file, 'utf8'));
+
+async function getFileIndex() {
+  try {
+    const index = await readJson(fileIndexPath);
+    return { files: Array.isArray(index.files) ? index.files : [] };
+  } catch {
+    return { files: [] };
+  }
+}
+async function saveFileIndex(index) {
+  await fs.mkdir(path.dirname(fileIndexPath), { recursive: true });
+  await fs.writeFile(fileIndexPath, JSON.stringify(index, null, 2));
+}
+async function readUpload(req) {
+  const declaredLength = Number(req.headers['content-length'] || 0);
+  if (declaredLength > MAX_FILE_SIZE) throw new Error('file_too_large');
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > MAX_FILE_SIZE) throw new Error('file_too_large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function safeFileName(value) {
+  let decoded = String(value || '');
+  try { decoded = decodeURIComponent(decoded); } catch {}
+  const name = path.basename(decoded.replace(/[\\\\/]/g, ''));
+  return [...name].filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join('').trim().slice(0, 180) || 'document-sans-nom';
+}
+function publicFile(file) {
+  return { id: file.id, folderId: file.folderId, name: file.name, mimeType: file.mimeType, size: file.size, createdAt: file.createdAt, updatedAt: file.updatedAt };
+}
+function currentUser(req) {
+  if (AUTH_BYPASS) return { ...DEVELOPMENT_USER, developmentBypass: true };
+  const session = sessionFrom(req);
+  return session ? { email: session.email, name: session.name } : null;
+}
+function requireUser(req, res) {
+  const user = currentUser(req);
+  if (!user) { json(res, 401, { error: 'Authentification requise.' }); return null; }
+  return user;
+}
 
 async function getParticipants() {
   try { return (await readJson(participantsPath)).participants || []; }
@@ -91,11 +138,28 @@ async function requestBody(req) {
   return body ? JSON.parse(body) : {};
 }
 
-async function handleApi(req, res, pathname) {
+function hasFolder(folderId, dossier) {
+  return dossier.folders.some((folder) => folder.id === folderId || (folder.children || []).some((child) => child.id === folderId));
+}
+function fileIdFromPath(pathname) {
+  if (!pathname.startsWith('/api/files/')) return '';
+  const value = decodeURIComponent(pathname.slice('/api/files/'.length));
+  return value.includes('/') ? '' : value;
+}
+function storedFilePath(file) { return path.join(fileStoragePath, file.storedName); }
+async function saveUploadedContent(req, file) {
+  const content = await readUpload(req);
+  if (!content.length) throw new Error('empty_file');
+  await fs.mkdir(fileStoragePath, { recursive: true });
+  await fs.writeFile(storedFilePath(file), content);
+  return content.length;
+}
+
+async function handleApi(req, res, url) {
+  const pathname = url.pathname;
   if (req.method === 'GET' && pathname === '/api/session') {
-    if (AUTH_BYPASS) return json(res, 200, { authenticated: true, developmentBypass: true, user: DEVELOPMENT_USER });
-    const session = sessionFrom(req);
-    return session ? json(res, 200, { authenticated: true, user: { email: session.email, name: session.name } }) : json(res, 401, { authenticated: false });
+    const user = currentUser(req);
+    return user ? json(res, 200, { authenticated: true, ...(user.developmentBypass ? { developmentBypass: true } : {}), user: { email: user.email, name: user.name } }) : json(res, 401, { authenticated: false });
   }
   if (req.method === 'POST' && pathname === '/api/login') {
     if (AUTH_BYPASS) return json(res, 200, { authenticated: true, developmentBypass: true, user: DEVELOPMENT_USER });
@@ -119,14 +183,79 @@ async function handleApi(req, res, pathname) {
     return json(res, 200, { authenticated: false }, { 'Set-Cookie': cookieHeader('', 0) });
   }
   if (req.method === 'GET' && pathname === '/api/dossier') {
-    if (!AUTH_BYPASS && !sessionFrom(req)) return json(res, 401, { error: 'Authentification requise.' });
-    return json(res, 200, await readJson(dossierPath));
+    if (!requireUser(req, res)) return;
+    const dossier = await readJson(dossierPath);
+    const index = await getFileIndex();
+    return json(res, 200, { ...dossier, files: index.files.map(publicFile) });
+  }
+  if (req.method === 'POST' && pathname === '/api/files') {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const folderId = String(url.searchParams.get('folderId') || '');
+    const dossier = await readJson(dossierPath);
+    if (!hasFolder(folderId, dossier)) return json(res, 400, { error: 'Rubrique de classement inconnue.' });
+    const name = safeFileName(req.headers['x-file-name']);
+    const file = { id: crypto.randomUUID(), folderId, name, mimeType: String(req.headers['content-type'] || 'application/octet-stream').split(';')[0], size: 0, storedName: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), owner: user.email };
+    const extension = path.extname(name).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 15);
+    file.storedName = `${file.id}${extension}`;
+    try { file.size = await saveUploadedContent(req, file); }
+    catch (error) { if (error.message === 'file_too_large') return json(res, 413, { error: 'Fichier trop volumineux. La limite est de 25 Mo.' }); if (error.message === 'empty_file') return json(res, 400, { error: 'Le fichier est vide.' }); throw error; }
+    const index = await getFileIndex();
+    index.files.push(file);
+    await saveFileIndex(index);
+    return json(res, 201, { file: publicFile(file) });
+  }
+  const fileId = fileIdFromPath(pathname);
+  if (fileId) {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const index = await getFileIndex();
+    const file = index.files.find((item) => item.id === fileId);
+    if (!file) return json(res, 404, { error: 'Fichier introuvable.' });
+    if (req.method === 'GET') {
+      const content = await fs.readFile(storedFilePath(file)).catch(() => null);
+      if (!content) return json(res, 404, { error: 'Le contenu du fichier est introuvable.' });
+      const encodedName = encodeURIComponent(file.name).replace(/'/g, '%27');
+      res.writeHead(200, { 'Content-Type': file.mimeType || 'application/octet-stream', 'Content-Length': content.length, 'Content-Disposition': `inline; filename="document"; filename*=UTF-8''${encodedName}`, 'Cache-Control': 'no-store' });
+      return res.end(content);
+    }
+    if (req.method === 'PATCH') {
+      const changes = await requestBody(req);
+      if (changes.name !== undefined) file.name = safeFileName(changes.name);
+      if (changes.folderId !== undefined) {
+        const dossier = await readJson(dossierPath);
+        if (!hasFolder(String(changes.folderId), dossier)) return json(res, 400, { error: 'Rubrique de classement inconnue.' });
+        file.folderId = String(changes.folderId);
+      }
+      file.updatedAt = new Date().toISOString();
+      await saveFileIndex(index);
+      return json(res, 200, { file: publicFile(file) });
+    }
+    if (req.method === 'PUT') {
+      const oldStoredName = file.storedName;
+      file.name = safeFileName(req.headers['x-file-name'] || file.name);
+      file.mimeType = String(req.headers['content-type'] || file.mimeType || 'application/octet-stream').split(';')[0];
+      const extension = path.extname(file.name).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 15);
+      file.storedName = `${file.id}-${Date.now()}${extension}`;
+      try { file.size = await saveUploadedContent(req, file); }
+      catch (error) { file.storedName = oldStoredName; if (error.message === 'file_too_large') return json(res, 413, { error: 'Fichier trop volumineux. La limite est de 25 Mo.' }); if (error.message === 'empty_file') return json(res, 400, { error: 'Le fichier est vide.' }); throw error; }
+      await fs.unlink(path.join(fileStoragePath, oldStoredName)).catch(() => {});
+      file.updatedAt = new Date().toISOString();
+      await saveFileIndex(index);
+      return json(res, 200, { file: publicFile(file) });
+    }
+    if (req.method === 'DELETE') {
+      await fs.unlink(storedFilePath(file)).catch(() => {});
+      index.files = index.files.filter((item) => item.id !== fileId);
+      await saveFileIndex(index);
+      return json(res, 200, { deleted: true });
+    }
   }
   return json(res, 404, { error: 'Route inconnue.' });
 }
 
 async function serveStatic(req, res, pathname) {
-  if (pathname.startsWith('/api/') || pathname.startsWith('/private/') || pathname.startsWith('/config/')) return json(res, 404, { error: 'Ressource non disponible.' });
+  if (pathname.startsWith('/api/') || pathname.startsWith('/private/') || pathname.startsWith('/config/') || pathname.startsWith('/storage/')) return json(res, 404, { error: 'Ressource non disponible.' });
   const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.replace(/^\/+/, ''));
   const file = path.resolve(ROOT, relative);
   if (!file.startsWith(ROOT + path.sep)) return json(res, 403, { error: 'Accès interdit.' });
@@ -140,7 +269,7 @@ async function serveStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (url.pathname.startsWith('/api/')) await handleApi(req, res, url.pathname);
+    if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
     else await serveStatic(req, res, url.pathname);
   } catch (error) {
     json(res, error.message === 'payload_too_large' ? 413 : 400, { error: 'Requête invalide.' });

@@ -17,25 +17,25 @@
       <a class="login-brand" href="/"><span class="login-mark">✓</span><span>Fiscale<span>.</span></span></a>
       <div class="login-kicker">LIVRABLE · CABINET GOBEX</div>
       <h1>Votre classeur de<br /><em>revue fiscale.</em></h1>
-      <p class="login-intro">Un espace de consultation réservé aux participants effectifs de la formation. Retrouvez le plan de classement et les pièces attendues, sans importer de documents confidentiels.</p>
+      <p class="login-intro">Un espace de travail réservé aux participants effectifs de la formation. Retrouvez les dossiers, consultez les fichiers associés et ajoutez les nouvelles pièces au bon endroit.</p>
       <form id="login-form" class="login-form" novalidate>
         <label for="login-email">Email professionnel</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="vous@entreprise.com" required />
         <label for="login-password">Mot de passe</label><div class="password-input"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Votre mot de passe" required /><button id="toggle-password" type="button" aria-label="Afficher le mot de passe">◉</button></div>
         <p id="login-error" class="login-error" role="alert"></p>
         <button class="login-submit" type="submit">Accéder au classeur <span>→</span></button>
       </form>
-      <div class="login-footnote"><span class="lock-icon">⌑</span><span>Accès protégé · Lecture seule · Aucun document importé</span></div>
+      <div class="login-footnote"><span class="lock-icon">⌑</span><span>Accès dossier · Fichiers consultables et modifiables · Classement par rubrique</span></div>
     </div>
     <div class="login-side-note"><span>03</span><div><strong>Tenue & classement</strong><small>24 rubriques · 7 sous-rubriques</small></div></div>
   </div>
 
   <div id="app-view" class="app-view" hidden>
-    <header class="app-header"><a class="app-brand" href="/"><span class="app-brand-mark">✓</span><strong>Fiscale<span>.</span></strong><small>Classeur de revue</small></a><div class="app-header-center"><span class="online-dot"></span><span id="session-mode">Session sécurisée</span><span class="read-only-badge">LECTURE SEULE</span></div><div class="app-user"><div><strong id="user-name">Participant</strong><small id="user-email"></small></div><button id="logout-button" type="button">Se déconnecter</button></div></header>
+    <header class="app-header"><a class="app-brand" href="/"><span class="app-brand-mark">✓</span><strong>Fiscale<span>.</span></strong><small>Classeur de revue</small></a><div class="app-header-center"><span class="online-dot"></span><span id="session-mode">Session sécurisée</span><span class="read-only-badge">ESPACE DOSSIER</span></div><div class="app-user"><div><strong id="user-name">Participant</strong><small id="user-email"></small></div><button id="logout-button" type="button">Se déconnecter</button></div></header>
     <div class="app-shell">
-      <aside class="app-sidebar"><div class="sidebar-title"><span>INDEX DU DOSSIER</span><strong id="folder-count">24 rubriques</strong></div><div class="search-box"><span>⌕</span><input id="folder-search" type="search" placeholder="Rechercher une rubrique" /></div><nav id="folder-nav" class="folder-nav" aria-label="Index du dossier"></nav><div class="sidebar-foot"><span class="lock-icon">⌑</span><div><strong>Données protégées</strong><small>Les documents réels restent hors de cet espace.</small></div></div></aside>
+      <aside class="app-sidebar"><div class="sidebar-title"><span>INDEX DU DOSSIER</span><strong id="folder-count">24 rubriques</strong></div><div class="search-box"><span>⌕</span><input id="folder-search" type="search" placeholder="Rechercher une rubrique" /></div><nav id="folder-nav" class="folder-nav" aria-label="Index du dossier"></nav><div class="sidebar-foot"><span class="lock-icon">⌑</span><div><strong>Fichiers du dossier</strong><small>Ajoutez chaque pièce dans sa rubrique pour la retrouver.</small></div></div></aside>
       <main class="app-main"><div class="content-top"><div><div class="breadcrumb"><span>Fiscale</span><i>/</i><span>Classeur</span><i>/</i><strong id="breadcrumb-current">Rapport</strong></div><div class="content-kicker">SÉQUENCE 03 · DOSSIER DE REVUE FISCALE</div><h1 id="page-title">Rapport</h1><p id="page-description">Version projet puis définitive</p></div><div class="content-actions"><span id="folder-reference" class="folder-reference">01-RAP</span><span id="folder-status" class="folder-status">À consulter</span></div></div><div class="progress-strip"><div><span>Progression du classement</span><strong id="progress-count">0 / 24 consultés</strong></div><div class="progress-track"><i id="progress-bar"></i></div><span id="progress-percent">0%</span></div><div id="folder-content" class="folder-content"></div></main>
     </div>
   </div>
-  <script src="classeur.js?v=2"></script>
+  <script src="classeur.js?v=3"></script>
 </body>
 </html>

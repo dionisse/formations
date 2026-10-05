@@ -1,7 +1,8 @@
 {
   "title": "Classeur de revue fiscale",
   "subtitle": "Séquence 03 · Tenue, classement et suivi des dossiers",
-  "readOnly": true,
+  "readOnly": false,
+  "fileWorkspace": true,
   "folders": [
     {"id":"01","title":"Rapport","description":"Version projet puis définitive","objective":"Centraliser la restitution de la mission.","documents":["Projet de rapport","Observations du client","Rapport définitif","Lettre d’opinion si nécessaire"],"reference":"01-RAP"},
     {"id":"02","title":"Notes de revue","description":"Points soulevés et apurement","objective":"Conserver les notes de l’Associé, du Directeur et du Chef de mission.","documents":["Notes ouvertes","Réponses de l’équipe","Preuves d’apurement","Validation finale"],"reference":"02-NRV"},

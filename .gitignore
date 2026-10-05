@@ -1,4 +1,5 @@
 node_modules/
 dist/
+storage/
 config/participants.json
 .env

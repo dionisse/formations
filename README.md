@@ -1,6 +1,6 @@
 # Fiscale — Méthodologie fiscale
 
-Page web pédagogique en français pour une formation proposée par le Cabinet GOBEX. Le parcours traite de la revue fiscale dans le contexte général et béninois, en 7 séquences, avec une présentation responsive, des illustrations, des infographies et un classeur de revue fiscale sécurisé.
+Page web pédagogique en français pour une formation proposée par le Cabinet GOBEX. Le parcours traite de la revue fiscale dans le contexte général et béninois, en 7 séquences, avec une présentation responsive, des illustrations, des infographies et un classeur de revue fiscale qui sert de point d’accès aux fichiers des dossiers.
 
 ## Lancer en local
 
@@ -15,7 +15,7 @@ npm run dev
 
 ### Mode développement
 
-En environnement local, la page de connexion est automatiquement sautée par défaut : un utilisateur fictif « Développement local » est affiché et aucun participant ni mot de passe n’est nécessaire pour travailler sur l’interface. Le classeur reste en lecture seule.
+En environnement local, la page de connexion est automatiquement sautée par défaut : un utilisateur fictif « Développement local » est affiché et aucun participant ni mot de passe n’est nécessaire pour travailler sur l’interface. Les fonctions d’ajout et de gestion des fichiers sont disponibles.
 
 Pour réactiver ponctuellement l’authentification en local :
 
@@ -55,7 +55,7 @@ Puis compléter `config/participants.json` :
     {
       "email": "participant@entreprise.bj",
       "name": "Nom du participant",
-      "passwordHash": "scrypt$16384$8$1$..."
+      "passwordHash": "pbkdf2$100000$64$..."
     }
   ]
 }
@@ -76,19 +76,25 @@ NODE_ENV=production COOKIE_SECURE=true npm run server
 Le serveur fournit :
 
 - des sessions aléatoires conservées côté serveur, avec cookie `HttpOnly`, `SameSite=Lax` et expiration après 8 heures ;
-- des mots de passe vérifiés avec `scrypt` et une comparaison résistante au timing ;
+- des mots de passe vérifiés avec `PBKDF2` et une comparaison résistante au timing ;
 - une limitation à 5 tentatives par couple adresse IP / email sur une fenêtre de 15 minutes ;
-- des routes protégées pour le contenu pédagogique du classeur ;
-- aucun accès statique direct à `private/` ou `config/`.
+- des routes protégées pour le contenu et les opérations sur les fichiers du classeur ;
+- aucun accès statique direct à `private/`, `storage/` ou `config/` ;
+- un stockage local des fichiers dans `storage/`, exclu de Git et non exposé comme ressource statique.
 
 Routes principales :
 
 - `POST /api/login` — ouvrir une session avec un email et un mot de passe ;
 - `GET /api/session` — vérifier la session courante ;
 - `POST /api/logout` — fermer la session ;
-- `GET /api/dossier` — récupérer le contenu du classeur après authentification.
+- `GET /api/dossier` — récupérer les rubriques et les fichiers du dossier ;
+- `POST /api/files?folderId=01` — ajouter un fichier dans une rubrique ;
+- `GET /api/files/:id` — consulter un fichier ;
+- `PATCH /api/files/:id` — renommer un fichier ou le déplacer dans une autre rubrique ;
+- `PUT /api/files/:id` — remplacer le contenu d’un fichier ;
+- `DELETE /api/files/:id` — supprimer un fichier.
 
-Le classeur est volontairement en lecture seule : cette première version ne permet ni import de documents réels, ni ajout, ni modification, ni persistance de checklist.
+Le classeur est une interface de classement et d’accès aux fichiers du dossier. Les fichiers sont conservés localement, avec une limite de 25 Mo par fichier. L’interface permet de les ajouter, consulter, renommer, remplacer et supprimer.
 
 ## Vérifier et construire
 
@@ -104,9 +110,10 @@ Le build Vite vérifie les pages et ressources de présentation. Pour tester le 
 - `styles.css` — direction artistique, illustrations, infographies et responsive design.
 - `script.js` — navigation mobile, accordéons, rail de progression et QCM.
 - `classeur.html` — page de connexion et shell du classeur.
-- `classeur.css` — styles de l'authentification, de la navigation et de la lecture seule.
+- `classeur.css` — styles de l'authentification, de la navigation et de la bibliothèque de fichiers.
 - `classeur.js` — connexion, session, déconnexion, recherche, navigation et rendu.
 - `server.mjs` — serveur Node natif, API d'authentification et protection des ressources.
 - `private/dossier-data.json` — 24 rubriques et 7 sous-rubriques pédagogiques, servies uniquement via l'API protégée.
+- `storage/` — index et contenu des fichiers de dossiers, créé automatiquement et ignoré par Git.
 - `config/participants.example.json` — modèle à copier pour préparer la liste des participants.
-- `scripts/hash-password.mjs` — générateur de hash `scrypt`.
+- `scripts/hash-password.mjs` — générateur de hash `PBKDF2`.
