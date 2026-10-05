@@ -8,6 +8,9 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
+// The development command opts into this bypass explicitly. Production always keeps authentication enabled.
+const AUTH_BYPASS = process.env.AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
+const DEVELOPMENT_USER = { email: 'developpement@fiscale.local', name: 'Développement local' };
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const ATTEMPT_WINDOW = 15 * 60 * 1000;
@@ -90,10 +93,12 @@ async function requestBody(req) {
 
 async function handleApi(req, res, pathname) {
   if (req.method === 'GET' && pathname === '/api/session') {
+    if (AUTH_BYPASS) return json(res, 200, { authenticated: true, developmentBypass: true, user: DEVELOPMENT_USER });
     const session = sessionFrom(req);
     return session ? json(res, 200, { authenticated: true, user: { email: session.email, name: session.name } }) : json(res, 401, { authenticated: false });
   }
   if (req.method === 'POST' && pathname === '/api/login') {
+    if (AUTH_BYPASS) return json(res, 200, { authenticated: true, developmentBypass: true, user: DEVELOPMENT_USER });
     const { email = '', password = '' } = await requestBody(req);
     const normalizedEmail = String(email).trim().toLowerCase();
     const key = clientKey(req, normalizedEmail);
@@ -114,7 +119,7 @@ async function handleApi(req, res, pathname) {
     return json(res, 200, { authenticated: false }, { 'Set-Cookie': cookieHeader('', 0) });
   }
   if (req.method === 'GET' && pathname === '/api/dossier') {
-    if (!sessionFrom(req)) return json(res, 401, { error: 'Authentification requise.' });
+    if (!AUTH_BYPASS && !sessionFrom(req)) return json(res, 401, { error: 'Authentification requise.' });
     return json(res, 200, await readJson(dossierPath));
   }
   return json(res, 404, { error: 'Route inconnue.' });
@@ -141,4 +146,4 @@ const server = http.createServer(async (req, res) => {
     json(res, error.message === 'payload_too_large' ? 413 : 400, { error: 'Requête invalide.' });
   }
 });
-server.listen(PORT, HOST, () => console.log(`Fiscale secure server running on http://${HOST}:${PORT}`));
+server.listen(PORT, HOST, () => console.log(`Fiscale secure server running on http://${HOST}:${PORT}${AUTH_BYPASS ? ' (mode développement : authentification désactivée)' : ''}`));

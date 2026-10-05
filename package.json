@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node server.mjs",
+    "dev": "AUTH_BYPASS=true node server.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.mjs",

@@ -40,7 +40,7 @@ function requireUser(payload) {
   const email = String(payload.user.email || '').trim();
   const name = String(payload.user.name || email || 'Participant').trim();
   if (!email) throw new Error('Le serveur n’a pas renvoyé l’identité du participant.');
-  return { email, name };
+  return { email, name, developmentBypass: payload.developmentBypass === true };
 }
 function showApp(user) {
   const safeUser = user && typeof user === 'object' ? user : {};
@@ -48,6 +48,8 @@ function showApp(user) {
   appView.hidden = false;
   document.querySelector('#user-name').textContent = safeUser.name || safeUser.email || 'Participant';
   document.querySelector('#user-email').textContent = safeUser.email || '';
+  document.querySelector('#session-mode').textContent = safeUser.developmentBypass ? 'Mode développement' : 'Session sécurisée';
+  appView.classList.toggle('development-mode', Boolean(safeUser.developmentBypass));
 }
 function flattenFolders(folders) {
   return folders.flatMap((folder) => [folder, ...(folder.children || [])]);

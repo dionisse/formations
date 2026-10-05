@@ -13,6 +13,12 @@ npm run dev
 
 `npm run server` lance également le même serveur sécurisé. Puis ouvrir [http://localhost:4173](http://localhost:4173).
 
+### Mode développement
+
+`npm run dev` active volontairement un contournement local de l’authentification : la page de connexion est automatiquement sautée et un utilisateur fictif « Développement local » est affiché. Le classeur reste en lecture seule et aucun participant ni mot de passe n’est nécessaire pour travailler sur l’interface.
+
+Le contournement est limité au script de développement et est refusé lorsque `NODE_ENV=production`. Pour tester l’authentification réelle, utiliser `npm run server` sans `AUTH_BYPASS=true`.
+
 Le serveur écoute par défaut sur `0.0.0.0:4173`. Le port peut être modifié :
 
 ```bash
