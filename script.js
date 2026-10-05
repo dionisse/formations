@@ -146,3 +146,80 @@ if (roleWorkshop) {
   });
   renderScenario();
 }
+
+const quizForm = document.querySelector('#sequence-quiz');
+if (quizForm) {
+  const quizData = [
+    { question: 'Dans une mission fiscale, la fiscalité doit être comprise comme…', options: ['Une simple formalité déclarative', 'Un sujet qui touche aussi les opérations, la paie et les décisions de gestion', 'Une tâche réservée au personnel administratif', 'Une activité indépendante de l’entreprise'], answer: 1, explanation: 'La fiscalité concerne les opérations, la paie, la trésorerie, les relations commerciales et les décisions de gestion.' },
+    { question: 'Quel est l’un des objectifs du séminaire ?', options: ['Travailler sans planning', 'Éviter toute supervision', 'Partager un cadre de travail commun', 'Limiter la documentation'], answer: 2, explanation: 'Le séminaire vise notamment à partager un cadre commun, renforcer les réflexes et structurer les travaux.' },
+    { question: 'Qui coordonne les activités techniques et administratives du cabinet ?', options: ['Le Gérant / l’Associé', 'Le Stagiaire', 'L’Assistant', 'Le Secrétaire uniquement'], answer: 0, explanation: 'Le Gérant ou l’Associé coordonne les activités techniques et administratives et veille au respect des procédures.' },
+    { question: 'Qui prépare le planning d’une mission et le fait approuver par l’Associé ou le Gérant ?', options: ['Le Stagiaire', 'Le Directeur de mission', 'Le client', 'Le personnel administratif'], answer: 1, explanation: 'Le Directeur de mission prépare le planning, organise les ressources et le fait approuver au bon niveau.' },
+    { question: 'Quel est le rôle central du Chef de mission ?', options: ['Remplacer systématiquement le Gérant', 'Superviser et contrôler les travaux des assistants', 'Gérer seul la relation commerciale', 'Ne jamais former les membres de l’équipe'], answer: 1, explanation: 'Le Chef de mission organise le travail quotidien, supervise les assistants et contrôle la qualité des travaux.' },
+    { question: 'Lorsqu’un Assistant rencontre une difficulté dans une mission, il doit…', options: ['La garder pour lui', 'Contacter directement le client sans validation', 'La signaler au Chef de mission', 'Demander au Stagiaire de décider'], answer: 2, explanation: 'L’Assistant rend compte au Chef de mission de toutes les difficultés relatives aux travaux exécutés.' },
+    { question: 'Quelle règle s’applique au Stagiaire ?', options: ['Il entretient directement la relation avec le client', 'Il accède à toutes les informations du cabinet', 'Il respecte le secret et la discrétion professionnels', 'Il réalise seul les missions complexes'], answer: 2, explanation: 'Le Stagiaire travaille dans un périmètre défini et est tenu au respect du secret professionnel et de la discrétion.' },
+    { question: 'Pour commencer une planification utile, il faut d’abord…', options: ['Ouvrir plusieurs dossiers en même temps', 'Choisir la période et le résultat attendu', 'Attendre que l’urgence apparaisse', 'Supprimer les temps de revue'], answer: 1, explanation: 'On choisit un horizon de planification puis on définit le résultat, le livrable et l’échéance.' },
+    { question: 'Dans une mission fiscale, une bonne priorité tient compte notamment de…', options: ['L’urgence seulement', 'L’impact, l’urgence, le risque, les dépendances et la rentabilité', 'La tâche la plus facile', 'L’ordre d’arrivée des e-mails uniquement'], answer: 1, explanation: 'La priorité se décide en croisant urgence, impact, risque, dépendance et rentabilité.' },
+    { question: 'Pourquoi faut-il prévoir un temps de réserve dans l’agenda ?', options: ['Pour remplir le calendrier', 'Pour absorber les imprévus, retours et validations sans désorganiser la mission', 'Pour éviter d’imputer les temps', 'Pour supprimer les échanges d’équipe'], answer: 1, explanation: 'Une marge protège la mission contre les pièces manquantes, les demandes urgentes et les validations complémentaires.' }
+  ];
+  const questionsContainer = document.querySelector('#quiz-questions');
+  const progressLabel = document.querySelector('#quiz-progress-label');
+  const progressBar = document.querySelector('#quiz-progress-bar');
+  const message = document.querySelector('#quiz-form-message');
+  const submit = document.querySelector('#quiz-submit');
+  const result = document.querySelector('#quiz-result');
+  const resultScore = document.querySelector('#quiz-result-score');
+  const resultMessage = document.querySelector('#quiz-result-message');
+  const correctCount = document.querySelector('#quiz-correct-count');
+  const review = document.querySelector('#quiz-review-list');
+  const reset = document.querySelector('#quiz-reset');
+
+  function renderQuiz() {
+    questionsContainer.innerHTML = quizData.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questionsContainer.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuizProgress));
+    updateQuizProgress();
+  }
+
+  function updateQuizProgress() {
+    const answered = quizData.filter((_, index) => quizForm.querySelector(`input[name="question-${index}"]:checked`)).length;
+    progressLabel.textContent = `${answered} / ${quizData.length} répondues`;
+    progressBar.style.width = `${answered / quizData.length * 100}%`;
+  }
+
+  function showQuizResult() {
+    const answers = quizData.map((_, index) => quizForm.querySelector(`input[name="question-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      message.className = 'quiz-form-message';
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      const options = quizForm.querySelectorAll(`input[name="question-${index}"]`);
+      options.forEach((input) => {
+        input.disabled = true;
+        const optionLabel = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) optionLabel.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) optionLabel.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore.innerHTML = `${score}<span>/20</span>`;
+    correctCount.textContent = `${correct} / ${quizData.length} bonnes réponses`;
+    resultMessage.textContent = score >= 16 ? 'Très bon résultat. Vos réflexes sont bien installés.' : score >= 10 ? 'Les bases sont là. Relisez les points de vigilance avant de poursuivre.' : 'Prenez le temps de revoir les rôles et la méthode de planification avant la suite.';
+    review.innerHTML = quizData.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message.className = 'quiz-form-message success';
+    submit.disabled = true;
+    result.hidden = false;
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult(); });
+  reset.addEventListener('click', () => { quizForm.reset(); quizForm.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit.disabled = false; result.hidden = true; message.textContent = ''; message.className = 'quiz-form-message'; renderQuiz(); quizForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz();
+}
