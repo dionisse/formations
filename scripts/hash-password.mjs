@@ -6,7 +6,7 @@ if (!password) {
   process.exit(1);
 }
 const salt = crypto.randomBytes(16);
-crypto.scrypt(password, salt, 64, { N: 16384, r: 8, p: 1, maxmem: 32 * 1024 * 1024 }, (error, derived) => {
+crypto.pbkdf2(password, salt, 100000, 64, 'sha512', (error, derived) => {
   if (error) throw error;
-  console.log(`scrypt$16384$8$1$${salt.toString('hex')}$${derived.toString('hex')}`);
+  console.log(`pbkdf2$100000$64$${salt.toString('hex')}$${derived.toString('hex')}`);
 });

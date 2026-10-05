@@ -8,7 +8,6 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
-// The development command opts into this bypass explicitly. Production always keeps authentication enabled.
 const AUTH_BYPASS = process.env.AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
 const DEVELOPMENT_USER = { email: 'developpement@fiscale.local', name: 'Développement local' };
 const SESSION_TTL = 8 * 60 * 60 * 1000;
@@ -38,16 +37,16 @@ function parseCookies(header = '') {
 }
 
 function passwordParts(stored) {
-  const [algorithm, N, r, p, salt, digest] = String(stored || '').split('$');
-  if (algorithm !== 'scrypt' || !N || !r || !p || !salt || !digest) return null;
-  return { N: Number(N), r: Number(r), p: Number(p), salt, digest: Buffer.from(digest, 'hex') };
+  const [algorithm, iterations, keylen, salt, digest] = String(stored || '').split('$');
+  if (algorithm !== 'pbkdf2' || !iterations || !keylen || !salt || !digest) return null;
+  return { iterations: Number(iterations), keylen: Number(keylen), salt, digest: Buffer.from(digest, 'hex') };
 }
 
 function verifyPassword(password, stored) {
   const parts = passwordParts(stored);
-  if (!parts || !Number.isSafeInteger(parts.N)) return Promise.resolve(false);
+  if (!parts || !Number.isSafeInteger(parts.iterations) || !Number.isSafeInteger(parts.keylen)) return Promise.resolve(false);
   return new Promise((resolve, reject) => {
-    crypto.scrypt(password, Buffer.from(parts.salt, 'hex'), parts.digest.length, { N: parts.N, r: parts.r, p: parts.p, maxmem: 32 * 1024 * 1024 }, (error, derived) => {
+    crypto.pbkdf2(password, Buffer.from(parts.salt, 'hex'), parts.iterations, parts.keylen, 'sha512', (error, derived) => {
       if (error) return reject(error);
       resolve(derived.length === parts.digest.length && crypto.timingSafeEqual(derived, parts.digest));
     });
@@ -56,7 +55,7 @@ function verifyPassword(password, stored) {
 
 const dummyHash = await new Promise((resolve, reject) => {
   const salt = crypto.randomBytes(16);
-  crypto.scrypt('not-a-real-password', salt, 64, { N: 16384, r: 8, p: 1, maxmem: 32 * 1024 * 1024 }, (error, derived) => error ? reject(error) : resolve(`scrypt$16384$8$1$${salt.toString('hex')}$${derived.toString('hex')}`));
+  crypto.pbkdf2('not-a-real-password', salt, 100000, 64, 'sha512', (error, derived) => error ? reject(error) : resolve(`pbkdf2$100000$64$${salt.toString('hex')}$${derived.toString('hex')}`));
 });
 
 function clientKey(req, email) { return `${req.socket.remoteAddress || 'unknown'}:${email}`; }
