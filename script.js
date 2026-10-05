@@ -298,3 +298,78 @@ if (quizForm2) {
   reset2.addEventListener('click', () => { quizForm2.reset(); quizForm2.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit2.disabled = false; result2.hidden = true; message2.textContent = ''; message2.className = 'quiz-form-message'; renderQuiz2(); quizForm2.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz2();
 }
+
+const quizForm3 = document.querySelector('#sequence-quiz-3');
+if (quizForm3) {
+  const quizData3 = [
+    { question: 'Quel est le rôle principal d’un programme de travail ?', options: ['Remplacer le rapport final', 'Décrire les contrôles, les preuves et les conclusions attendues', 'Lister uniquement les impôts', 'Servir de feuille de présence'], answer: 1, explanation: 'Le programme relie objectif, risque, procédure, preuve et conclusion afin de guider et démontrer les travaux.' },
+    { question: 'Quel élément doit être adapté à chaque entreprise ?', options: ['Le logo du cabinet', 'Le périmètre, les risques et les procédures de contrôle', 'La couleur des feuilles', 'Le nombre de pages du rapport'], answer: 1, explanation: 'Un programme de travail est une base méthodologique à adapter à l’activité, au régime fiscal, à la période et aux risques.' },
+    { question: 'Quelle taxe fait partie des axes de revue présentés ?', options: ['TVA', 'Taxe de stationnement interne', 'Taxe sur les loisirs personnels', 'Aucune taxe sur les opérations'], answer: 0, explanation: 'La TVA fait partie des programmes de revue, avec notamment les retenues, impôts et contributions listés dans la séquence.' },
+    { question: 'Pour une revue de TVA, quel rapprochement est pertinent ?', options: ['Factures, journaux, déclarations et paiements', 'Agenda et congés', 'Courriers uniquement', 'Inventaire du mobilier uniquement'], answer: 0, explanation: 'Le rapprochement entre opérations, comptabilité, déclarations et paiements permet de tester la cohérence du traitement.' },
+    { question: 'Que doit contenir une feuille de travail bien référencée ?', options: ['Une conclusion sans pièce', 'Une référence reliée au test et à la preuve examinée', 'Un commentaire oral uniquement', 'Un fichier sans date'], answer: 1, explanation: 'La référence permet de retrouver le test, la pièce justificative et la conclusion associée.' },
+    { question: 'Quel est le rôle du Chef de mission dans le programme ?', options: ['Construire, répartir et suivre les travaux', 'Exécuter toutes les tâches seul', 'Ne jamais revoir les travaux', 'Valider les paiements du client'], answer: 0, explanation: 'Le Chef construit le programme, répartit les tests et suit l’avancement de l’équipe.' },
+    { question: 'Qui intervient pour revoir les zones sensibles et arbitrer les conclusions majeures ?', options: ['Le Stagiaire', 'Le Directeur de mission', 'Le client seul', 'Le fournisseur'], answer: 1, explanation: 'Le Directeur de mission revoit les zones sensibles, arbitre et valide les conclusions importantes.' },
+    { question: 'Le programme de travail doit être actualisé lorsque…', options: ['Les risques ou l’activité évoluent', 'La mission est terminée depuis longtemps', 'Le dossier change de couleur', 'Aucune information nouvelle n’apparaît'], answer: 0, explanation: 'Le programme doit rester aligné avec les risques, les changements d’activité et les informations nouvelles.' },
+    { question: 'Quel est l’objectif du programme relatif au résultat fiscal et à l’IS ?', options: ['Ignorer le résultat comptable', 'Documenter le passage du résultat comptable au résultat fiscal et recalculer l’impôt', 'Vérifier uniquement les immobilisations', 'Remplacer la balance générale'], answer: 1, explanation: 'La revue examine les retraitements, les déductions, les réintégrations et la cohérence du calcul de l’impôt.' },
+    { question: 'Avant de conclure un programme, il faut s’assurer que…', options: ['La procédure est référencée, la preuve est suffisante et la conclusion est revue', 'Le programme est resté vierge', 'Les anomalies sont supprimées', 'La preuve n’est pas conservée'], answer: 0, explanation: 'Les quatre portes de qualité sont : complet, référencé, revu et actionnable.' }
+  ];
+  const questions3 = document.querySelector('#quiz-questions-3');
+  const progressLabel3 = document.querySelector('#quiz-progress-label-3');
+  const progressBar3 = document.querySelector('#quiz-progress-bar-3');
+  const message3 = document.querySelector('#quiz-form-message-3');
+  const submit3 = document.querySelector('#quiz-submit-3');
+  const result3 = document.querySelector('#quiz-result-3');
+  const resultScore3 = document.querySelector('#quiz-result-score-3');
+  const resultMessage3 = document.querySelector('#quiz-result-message-3');
+  const correctCount3 = document.querySelector('#quiz-correct-count-3');
+  const review3 = document.querySelector('#quiz-review-list-3');
+  const reset3 = document.querySelector('#quiz-reset-3');
+
+  function renderQuiz3() {
+    questions3.innerHTML = quizData3.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-3-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questions3.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuiz3));
+    updateQuiz3();
+  }
+
+  function updateQuiz3() {
+    const answered = quizData3.filter((_, index) => quizForm3.querySelector(`input[name="question-3-${index}"]:checked`)).length;
+    progressLabel3.textContent = `${answered} / ${quizData3.length} répondues`;
+    progressBar3.style.width = `${answered / quizData3.length * 100}%`;
+  }
+
+  function showQuizResult3() {
+    const answers = quizData3.map((_, index) => quizForm3.querySelector(`input[name="question-3-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message3.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm3.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData3.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      quizForm3.querySelectorAll(`input[name="question-3-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore3.innerHTML = `${score}<span>/20</span>`;
+    correctCount3.textContent = `${correct} / ${quizData3.length} bonnes réponses`;
+    resultMessage3.textContent = score >= 16 ? 'Très bon résultat. Vous savez construire et piloter un programme de revue.' : score >= 10 ? 'Les bases sont là. Relisez la ligne de programme et les axes fiscaux.' : 'Reprenez la structure d’un programme et le rôle de chaque niveau de supervision.';
+    review3.innerHTML = quizData3.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message3.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message3.className = 'quiz-form-message success';
+    submit3.disabled = true;
+    result3.hidden = false;
+    result3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm3.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult3(); });
+  reset3.addEventListener('click', () => { quizForm3.reset(); quizForm3.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit3.disabled = false; result3.hidden = true; message3.textContent = ''; message3.className = 'quiz-form-message'; renderQuiz3(); quizForm3.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz3();
+}
