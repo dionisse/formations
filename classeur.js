@@ -22,11 +22,21 @@ function showLogin(message = '') {
   loginView.hidden = false;
   loginError.textContent = message;
 }
+function requireUser(payload) {
+  if (!payload || payload.authenticated !== true || !payload.user || typeof payload.user !== 'object') {
+    throw new Error('La session est invalide ou a expiré. Veuillez vous reconnecter.');
+  }
+  const email = String(payload.user.email || '').trim();
+  const name = String(payload.user.name || email || 'Participant').trim();
+  if (!email) throw new Error('Le serveur n’a pas renvoyé l’identité du participant.');
+  return { email, name };
+}
 function showApp(user) {
+  const safeUser = user && typeof user === 'object' ? user : {};
   loginView.hidden = true;
   appView.hidden = false;
-  document.querySelector('#user-name').textContent = user.name;
-  document.querySelector('#user-email').textContent = user.email;
+  document.querySelector('#user-name').textContent = safeUser.name || safeUser.email || 'Participant';
+  document.querySelector('#user-email').textContent = safeUser.email || '';
 }
 function flattenFolders(folders) {
   return folders.flatMap((folder) => [folder, ...(folder.children || [])]);
@@ -69,8 +79,9 @@ function updateProgress() {
 async function openSession() {
   try {
     const session = await request('/api/session');
+    const user = requireUser(session);
     dossier = await request('/api/dossier');
-    showApp(session.user);
+    showApp(user);
     renderFolder(getFolder(currentFolderId));
   } catch { showLogin(); }
 }
@@ -81,8 +92,9 @@ loginForm.addEventListener('submit', async (event) => {
   button.disabled = true;
   try {
     const session = await request('/api/login', { method: 'POST', body: JSON.stringify({ email: loginForm.email.value, password: loginForm.password.value }) });
+    const user = requireUser(session);
     dossier = await request('/api/dossier');
-    showApp(session.user);
+    showApp(user);
     renderFolder(getFolder(currentFolderId));
   } catch (error) { loginError.textContent = error.message; } finally { button.disabled = false; }
 });
