@@ -223,3 +223,78 @@ if (quizForm) {
   reset.addEventListener('click', () => { quizForm.reset(); quizForm.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit.disabled = false; result.hidden = true; message.textContent = ''; message.className = 'quiz-form-message'; renderQuiz(); quizForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz();
 }
+
+const quizForm2 = document.querySelector('#sequence-quiz-2');
+if (quizForm2) {
+  const quizData2 = [
+    { question: 'Quel est le point de départ d’une mission de revue fiscale ?', options: ['Commencer immédiatement les tests', 'Comprendre le besoin, le périmètre et les livrables', 'Archiver les pièces anciennes', 'Rédiger le rapport final'], answer: 1, explanation: 'Une mission solide commence par un cadrage partagé : besoin, période, impôts, entités, livrables et responsabilités.' },
+    { question: 'Avant de planifier les travaux, il est essentiel de vérifier…', options: ['Uniquement le nombre de collaborateurs', 'Les travaux antérieurs, les changements et les contrôles en cours', 'La couleur du dossier', 'Le nombre de réunions prévues'], answer: 1, explanation: 'Les travaux précédents et les changements significatifs permettent d’orienter l’analyse des risques.' },
+    { question: 'Que contient principalement le dossier permanent ?', options: ['Les seuls e-mails de la période', 'Les informations durables sur l’entreprise, son organisation et ses obligations', 'Uniquement les feuilles de temps', 'Les réponses du questionnaire final'], answer: 1, explanation: 'Le dossier permanent conserve les informations de référence qui expliquent l’entreprise et doivent être actualisées lorsqu’elles évoluent.' },
+    { question: 'Une approche par les risques consiste à…', options: ['Contrôler toutes les opérations de la même façon', 'Concentrer les travaux sur les zones à impact ou probabilité élevés', 'Éviter les tests documentés', 'Ne travailler que sur les demandes du client'], answer: 1, explanation: 'L’approche par les risques permet de concentrer les ressources sur les zones sensibles et les conséquences les plus importantes.' },
+    { question: 'Une feuille de travail de qualité doit permettre de retrouver…', options: ['Seulement le nom de l’auditeur', 'Le test réalisé, la preuve examinée et la conclusion', 'Le budget du cabinet uniquement', 'Une opinion non documentée'], answer: 1, explanation: 'La feuille de travail doit rendre le raisonnement traçable : objectif, travaux, preuve, résultat et conclusion.' },
+    { question: 'Pour qualifier un constat, il est utile de documenter…', options: ['Le fait, la règle, la cause, la conséquence et l’action', 'Uniquement la conséquence supposée', 'La préférence personnelle de l’auditeur', 'Seulement la date du contrôle'], answer: 0, explanation: 'Cette logique permet de distinguer ce qui est observé, ce qui devrait être, pourquoi l’écart existe et comment le traiter.' },
+    { question: 'La finalisation d’une mission comprend notamment…', options: ['La suppression des points en suspens', 'La revue de supervision, la validation des faits et la restitution', 'L’arrêt des échanges avec le client', 'Le remplacement des preuves par des commentaires'], answer: 1, explanation: 'La finalisation consiste à solder les points, faire relire, valider les faits, hiérarchiser les risques et restituer.' },
+    { question: 'Une recommandation est réellement pilotable lorsqu’elle comporte…', options: ['Une formulation générale uniquement', 'Un responsable, une échéance et une preuve attendue', 'Un long commentaire sans action', 'Une nouvelle mission automatique'], answer: 1, explanation: 'Le responsable, la date et la preuve permettent de vérifier objectivement la prise en compte de l’action.' },
+    { question: 'Le suivi des recommandations précédentes sert à…', options: ['Répéter le rapport précédent', 'Vérifier la mise en œuvre et réévaluer le risque résiduel', 'Éviter toute nouvelle analyse', 'Fermer automatiquement les écarts'], answer: 1, explanation: 'Le suivi transforme les recommandations en actions vérifiables et réinjecte les enseignements dans la nouvelle analyse des risques.' },
+    { question: 'Quel rapprochement est particulièrement utile lors d’une revue fiscale ?', options: ['Comptabilité, déclarations, pièces justificatives et paiements', 'Agenda personnel et météo', 'Liste des congés uniquement', 'Logo et papier à en-tête'], answer: 0, explanation: 'Le rapprochement de ces sources permet de vérifier la cohérence entre les opérations, les enregistrements, les déclarations et les règlements.' }
+  ];
+  const questions2 = document.querySelector('#quiz-questions-2');
+  const progressLabel2 = document.querySelector('#quiz-progress-label-2');
+  const progressBar2 = document.querySelector('#quiz-progress-bar-2');
+  const message2 = document.querySelector('#quiz-form-message-2');
+  const submit2 = document.querySelector('#quiz-submit-2');
+  const result2 = document.querySelector('#quiz-result-2');
+  const resultScore2 = document.querySelector('#quiz-result-score-2');
+  const resultMessage2 = document.querySelector('#quiz-result-message-2');
+  const correctCount2 = document.querySelector('#quiz-correct-count-2');
+  const review2 = document.querySelector('#quiz-review-list-2');
+  const reset2 = document.querySelector('#quiz-reset-2');
+
+  function renderQuiz2() {
+    questions2.innerHTML = quizData2.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-2-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questions2.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuiz2));
+    updateQuiz2();
+  }
+
+  function updateQuiz2() {
+    const answered = quizData2.filter((_, index) => quizForm2.querySelector(`input[name="question-2-${index}"]:checked`)).length;
+    progressLabel2.textContent = `${answered} / ${quizData2.length} répondues`;
+    progressBar2.style.width = `${answered / quizData2.length * 100}%`;
+  }
+
+  function showQuizResult2() {
+    const answers = quizData2.map((_, index) => quizForm2.querySelector(`input[name="question-2-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message2.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm2.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData2.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      quizForm2.querySelectorAll(`input[name="question-2-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore2.innerHTML = `${score}<span>/20</span>`;
+    correctCount2.textContent = `${correct} / ${quizData2.length} bonnes réponses`;
+    resultMessage2.textContent = score >= 16 ? 'Très bon résultat. Votre démarche de revue est bien structurée.' : score >= 10 ? 'Les bases sont là. Relisez les portes de contrôle avant de poursuivre.' : 'Reprenez le cycle de mission et la structure du dossier avant la suite.';
+    review2.innerHTML = quizData2.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message2.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message2.className = 'quiz-form-message success';
+    submit2.disabled = true;
+    result2.hidden = false;
+    result2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm2.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult2(); });
+  reset2.addEventListener('click', () => { quizForm2.reset(); quizForm2.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit2.disabled = false; result2.hidden = true; message2.textContent = ''; message2.className = 'quiz-form-message'; renderQuiz2(); quizForm2.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz2();
+}
