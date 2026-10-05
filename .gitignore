@@ -1,0 +1,4 @@
+node_modules/
+dist/
+config/participants.json
+.env

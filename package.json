@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server.mjs",
+    "hash-password": "node scripts/hash-password.mjs"
   },
   "devDependencies": {
     "vite": "^5.4.0"
