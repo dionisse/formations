@@ -26,3 +26,6 @@ main>section[hidden],.guided-completion[hidden]{display:none!important}.guided-b
 @media(max-width:720px){.guided-banner{grid-column:1/-1;display:block;padding:22px 18px}.guided-progress-box{margin-top:20px}.guided-completion{display:block;width:calc(100% - 36px);padding:23px 19px}.guided-completion .button{margin-top:18px;width:100%;white-space:normal}.guided-completion h3{font-size:1.1rem}}
 
 .final-evaluation{background:#fff}.final-evaluation .quiz-heading{margin-bottom:40px}
+
+.sequence-card.preview-only{opacity:1}.sequence-card.preview-only .sequence-details{background:#fbfcfa}.sequence-card.preview-only .lesson-link{position:relative}.sequence-card.preview-only .lesson-link:after{content:'Contenu complet verrouillé';display:inline-block;margin-left:8px;color:var(--muted-light);font-size:.55rem;font-weight:400}
+.sequence-card.preview-only .sequence-meta:after{content:'APERÇU ACCESSIBLE';display:inline-block;margin-left:8px;padding:3px 5px;border-radius:3px;background:var(--gold-soft);color:#9c6f1e;font-size:.48rem;letter-spacing:.08em;vertical-align:1px}

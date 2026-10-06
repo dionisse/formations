@@ -671,10 +671,11 @@ if (quizForm7) {
     const next = firstIncomplete();
     sequenceCards.forEach((card) => {
       const number = Number(card.dataset.sequence);
-      const locked = number > next;
-      card.classList.toggle('locked', locked);
+      const previewOnly = number > next;
+      card.classList.toggle('preview-only', previewOnly);
+      card.classList.remove('locked');
       card.setAttribute('aria-current', number === currentNumber ? 'step' : 'false');
-      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', String(locked));
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', 'false');
     });
     railSteps.forEach((railStep) => {
       const number = Number(railStep.dataset.sequence);
@@ -733,7 +734,7 @@ if (quizForm7) {
 
   function showLockedMessage(number) {
     const group = getGroup(number);
-    status.textContent = `La séquence ${String(number).padStart(2, '0')} est verrouillée. Terminez d’abord la séquence ${String(firstIncomplete()).padStart(2, '0')} pour continuer.`;
+    status.textContent = `L’aperçu de la séquence ${String(number).padStart(2, '0')} reste accessible. Le contenu complet sera disponible après validation de la séquence ${String(firstIncomplete()).padStart(2, '0')}.`;
     banner.classList.add('is-warning');
     window.setTimeout(() => banner.classList.remove('is-warning'), 1800);
     banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -798,11 +799,20 @@ if (quizForm7) {
 
   sequenceCards.forEach((card) => {
     card.querySelector('.sequence-toggle')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
       const number = Number(card.dataset.sequence);
-      if (!isUnlocked(number)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showLockedMessage(number);
+      const willOpen = !card.classList.contains('open');
+      sequenceCards.forEach((other) => {
+        other.classList.remove('open');
+        other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
+      });
+      if (willOpen) {
+        card.classList.add('open');
+        card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'true');
+        if (!isUnlocked(number)) {
+          status.textContent = `Aperçu de la séquence ${String(number).padStart(2, '0')} : vous pouvez voir son contenu et son livrable. Le passage complet sera déverrouillé après validation de la séquence ${String(firstIncomplete()).padStart(2, '0')}.`;
+        }
       }
     }, true);
   });
