@@ -905,3 +905,27 @@ if (finalQuizForm) {
   finalReset.addEventListener('click', () => { finalQuizForm.reset(); finalQuizForm.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); finalSubmit.disabled = false; finalResult.hidden = true; finalMessage.textContent = ''; finalMessage.className = 'quiz-form-message'; renderFinalQuiz(); finalQuizForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderFinalQuiz();
 }
+
+/* Progressive reveal animations with a reduced-motion fallback. */
+(() => {
+  const revealNodes = [...document.querySelectorAll('.section-heading, .objective-card, .sequence-card, .guided-banner, .guided-completion, .quiz-heading, .declaration-card, .allocation-panel, .work-allocation, .file-organization, .resource-card, .final-cta-inner, .planning-step, .phase-card, .role-card')];
+  revealNodes.forEach((node, index) => {
+    node.classList.add('motion-reveal');
+    node.style.setProperty('--motion-delay', `${Math.min(index % 6, 5) * 65}ms`);
+  });
+  const rail = document.querySelector('.program-rail');
+  rail?.classList.add('timeline-ready');
+  rail?.querySelectorAll('.rail-step').forEach((step, index) => step.style.setProperty('--timeline-delay', `${index * 90}ms`));
+  if (!('IntersectionObserver' in window)) {
+    revealNodes.forEach((node) => node.classList.add('is-visible'));
+    return;
+  }
+  const observer = new IntersectionObserver((entries, instance) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      instance.unobserve(entry.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+  revealNodes.forEach((node) => observer.observe(node));
+})();
