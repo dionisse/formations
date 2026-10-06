@@ -118,3 +118,21 @@ main>section[hidden],.guided-completion[hidden]{display:none!important}.guided-b
 html,body{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
 input,textarea,select,[contenteditable="true"]{ -webkit-user-select:text; user-select:text; -webkit-touch-callout:default }
 img{ -webkit-user-drag:none; user-drag:none }
+
+/* Les cartes suivantes restent lisibles en aperçu, sans ouvrir leur séquence pédagogique complète. */
+.sequence-card.preview-only .sequence-details{max-height:260px;opacity:1}
+@media(max-width:720px){
+  .sequence-card.preview-only .sequence-details{max-height:520px;opacity:1}
+  .sequence-card.preview-only .sequence-details .lesson-link{display:inline-flex}
+  .quiz-section:not([hidden]) .motion-reveal{opacity:1;transform:none;visibility:visible}
+  .quiz-section:not([hidden]) .quiz-question{min-width:0;max-width:100%}
+  .quiz-section:not([hidden]) .quiz-question-header{min-width:0}
+  .quiz-section:not([hidden]) .quiz-question-text{min-width:0;overflow-wrap:anywhere}
+  .quiz-section:not([hidden]) #quiz-questions-1,
+  .quiz-section:not([hidden]) #quiz-questions-2,
+  .quiz-section:not([hidden]) #quiz-questions-3,
+  .quiz-section:not([hidden]) #quiz-questions-4,
+  .quiz-section:not([hidden]) #quiz-questions-5,
+  .quiz-section:not([hidden]) #quiz-questions-7,
+  .quiz-section:not([hidden]) #final-quiz-questions{width:100%;min-width:0}
+}
