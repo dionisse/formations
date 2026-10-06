@@ -61,8 +61,11 @@ function safeFileName(value) {
   const name = path.basename(decoded.replace(/[\\\\/]/g, ''));
   return [...name].filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join('').trim().slice(0, 180) || 'document-sans-nom';
 }
+function localFilePath(file) {
+  return path.relative(ROOT, storedFilePath(file)).split(path.sep).join('/');
+}
 function publicFile(file) {
-  return { id: file.id, folderId: file.folderId, name: file.name, mimeType: file.mimeType, size: file.size, createdAt: file.createdAt, updatedAt: file.updatedAt };
+  return { id: file.id, folderId: file.folderId, name: file.name, mimeType: file.mimeType, size: file.size, localPath: localFilePath(file), createdAt: file.createdAt, updatedAt: file.updatedAt };
 }
 function currentUser(req) {
   if (AUTH_BYPASS) return { ...DEVELOPMENT_USER, developmentBypass: true };
