@@ -373,3 +373,78 @@ if (quizForm3) {
   reset3.addEventListener('click', () => { quizForm3.reset(); quizForm3.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit3.disabled = false; result3.hidden = true; message3.textContent = ''; message3.className = 'quiz-form-message'; renderQuiz3(); quizForm3.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz3();
 }
+
+const quizForm4 = document.querySelector('#sequence-quiz-4');
+if (quizForm4) {
+  const quizData4 = [
+    { question: 'Avant de préparer une déclaration de TVA, quelle base documentaire faut-il d’abord réunir ?', options: ['Les pièces comptables, la balance générale et les grands-livres', 'Uniquement la dernière quittance de paiement', 'Seulement le chiffre d’affaires communiqué oralement', 'Le rapport de la mission précédente sans les pièces'], answer: 0, explanation: 'La préparation commence par les pièces comptables, la balance et les grands-livres, puis par leur rapprochement.' },
+    { question: 'Pour un prestataire de services, quel point doit être examiné lors de la revue de TVA ?', options: ['La couleur du logo sur la facture', 'Le point des encaissements et la règle d’exigibilité applicable', 'Uniquement le solde bancaire de clôture', 'Le nombre de véhicules de l’entreprise'], answer: 1, explanation: 'Les encaissements peuvent déterminer l’exigibilité pour les prestations de services. La règle applicable à l’opération doit être confirmée dans les textes en vigueur.' },
+    { question: 'Concernant la TVA pour compte de tiers, quelle affirmation correspond à la méthodologie de la séquence ?', options: ['Elle est toujours compensable avec la TVA de la société', 'Elle est due uniquement à la clôture annuelle', 'Elle doit être rapprochée entre paiement, déclaration, déduction et preuve de reversement', 'Elle ne nécessite pas de facture du prestataire'], answer: 2, explanation: 'La feuille de travail doit relier le prestataire, la facture, le paiement, la TVA déclarée, la TVA déduite et la preuve de reversement. Elle ne doit pas être compensée avec la TVA due par la société.' },
+    { question: 'Quel contrôle permet de tester l’exhaustivité d’une retenue AIB ?', options: ['Comparer les fournisseurs payés, les factures, les bases et la déclaration', 'Vérifier seulement le total de la balance', 'Contrôler uniquement les fournisseurs non payés', 'Remplacer le rapprochement par une estimation'], answer: 0, explanation: 'Le rapprochement des fournisseurs réglés, des factures, des bases hors taxe, des retenues et de la déclaration permet d’identifier les absences et les écarts.' },
+    { question: 'Pour un fournisseur étranger soumis à une retenue, quel point doit être documenté avec prudence ?', options: ['Le pays du navigateur utilisé pour la saisie', 'La couleur de la facture', 'Le nombre de pages du contrat', 'La convention fiscale applicable et les justificatifs requis'], answer: 3, explanation: 'Les conventions fiscales, notamment celles applicables avec les pays concernés, peuvent modifier l’analyse. Leur application et les justificatifs doivent être confirmés.' },
+    { question: 'Quel est le rôle du logiciel Seri Paie dans la production des déclarations sociales et salariales ?', options: ['Il remplace toute revue des pièces comptables', 'Il produit les états après saisie, mais les éléments variables et la base imposable doivent être revus', 'Il valide automatiquement les avantages en nature', 'Il détermine seul le régime fiscal des indemnités'], answer: 1, explanation: 'Seri Paie facilite la production, mais la revue doit couvrir les éléments variables, les avantages en nature, les indemnités et le rapprochement avec la comptabilité.' },
+    { question: 'Comment traiter une indemnité de licenciement lors de la revue des impôts sur salaires ?', options: ['L’exclure sans conserver de justification', 'La réintégrer automatiquement à l’IS', 'Analyser sa qualification et le texte applicable avant de conclure sur son traitement à l’IRPP', 'Ne jamais la rapprocher de la paie'], answer: 2, explanation: 'Le traitement doit être documenté au regard de la qualification de l’indemnité et des dispositions en vigueur. La séquence rappelle cette réserve.' },
+    { question: 'Quelle information doit être obtenue au plus tard le 10 mars pour la TVM ?', options: ['Le registre des fournisseurs étrangers', 'Le fichier des immobilisations mis à jour', 'La liste des congés du personnel', 'Le tableau des ventes en gros'], answer: 1, explanation: 'Le fichier des immobilisations mis à jour sert à identifier les véhicules et à les classer dans les catégories pertinentes pour la TVM.' },
+    { question: 'Après la revue et la prise en compte des observations, quel circuit est attendu ?', options: ['Archiver immédiatement sans transmettre au client', 'Transmettre directement une version non revue à l’administration', 'Finaliser, transmettre au client puis à l’Administration fiscale, suivre le paiement et classer les preuves', 'Supprimer les feuilles de travail après paiement'], answer: 2, explanation: 'Le circuit comprend la finalisation, la transmission au client, la transmission à l’Administration fiscale, le paiement dans les délais, le classement et l’envoi des quittances.' },
+    { question: 'Que faut-il impérativement confirmer avant de présenter un taux, un article ou un délai comme règle applicable ?', options: ['La préférence du préparateur', 'Le modèle de l’ordinateur', 'La date de création du dossier', 'Le CGI, les textes d’application, les conventions et les textes en vigueur pour l’exercice contrôlé'], answer: 3, explanation: 'Les taux, articles, seuils, délais et conditions sont des repères à vérifier dans les textes applicables à l’exercice contrôlé ; ils ne doivent pas être présentés comme définitifs sans cette vérification.' }
+  ];
+  const questions4 = document.querySelector('#quiz-questions-4');
+  const progressLabel4 = document.querySelector('#quiz-progress-label-4');
+  const progressBar4 = document.querySelector('#quiz-progress-bar-4');
+  const message4 = document.querySelector('#quiz-form-message-4');
+  const submit4 = document.querySelector('#quiz-submit-4');
+  const result4 = document.querySelector('#quiz-result-4');
+  const resultScore4 = document.querySelector('#quiz-result-score-4');
+  const resultMessage4 = document.querySelector('#quiz-result-message-4');
+  const correctCount4 = document.querySelector('#quiz-correct-count-4');
+  const review4 = document.querySelector('#quiz-review-list-4');
+  const reset4 = document.querySelector('#quiz-reset-4');
+
+  function renderQuiz4() {
+    questions4.innerHTML = quizData4.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-4-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questions4.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuiz4));
+    updateQuiz4();
+  }
+
+  function updateQuiz4() {
+    const answered = quizData4.filter((_, index) => quizForm4.querySelector(`input[name="question-4-${index}"]:checked`)).length;
+    progressLabel4.textContent = `${answered} / ${quizData4.length} répondues`;
+    progressBar4.style.width = `${answered / quizData4.length * 100}%`;
+  }
+
+  function showQuizResult4() {
+    const answers = quizData4.map((_, index) => quizForm4.querySelector(`input[name="question-4-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message4.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm4.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData4.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      quizForm4.querySelectorAll(`input[name="question-4-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore4.innerHTML = `${score}<span>/20</span>`;
+    correctCount4.textContent = `${correct} / ${quizData4.length} bonnes réponses`;
+    resultMessage4.textContent = score >= 16 ? 'Très bon résultat. Vous maîtrisez le circuit déclaratif et les principaux points de contrôle.' : score >= 10 ? 'Les bases sont acquises. Relisez les points de preuve, les circuits et les réserves de vérification.' : 'Reprenez les cinq rubriques de la séquence et le circuit saisie, revue, transmission, paiement et classement.';
+    review4.innerHTML = quizData4.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message4.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message4.className = 'quiz-form-message success';
+    submit4.disabled = true;
+    result4.hidden = false;
+    result4.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm4.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult4(); });
+  reset4.addEventListener('click', () => { quizForm4.reset(); quizForm4.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit4.disabled = false; result4.hidden = true; message4.textContent = ''; message4.className = 'quiz-form-message'; renderQuiz4(); quizForm4.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz4();
+}
