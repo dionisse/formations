@@ -448,3 +448,78 @@ if (quizForm4) {
   reset4.addEventListener('click', () => { quizForm4.reset(); quizForm4.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit4.disabled = false; result4.hidden = true; message4.textContent = ''; message4.className = 'quiz-form-message'; renderQuiz4(); quizForm4.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz4();
 }
+
+const quizForm5 = document.querySelector('#sequence-quiz-5');
+if (quizForm5) {
+  const quizData5 = [
+    { question: 'Avec quel interlocuteur du client faut-il communiquer pour obtenir et transmettre les documents de paie ?', options: ['N’importe quel salarié disponible', 'Le collaborateur responsable des ressources humaines', 'Une société de distribution de courriers', 'Un fournisseur du client'], answer: 1, explanation: 'Les échanges doivent se faire avec le collaborateur du client responsable des ressources humaines afin de limiter les risques de divulgation.' },
+    { question: 'À quelle date les fiches employés doivent-elles être transmises au plus tard selon la méthodologie ?', options: ['Le 5 de chaque mois', 'Le 10 de chaque mois', 'Le 25 de chaque mois', 'À la fin de l’exercice'], answer: 2, explanation: 'Les fiches employés doivent être obtenues au plus tard le 25 de chaque mois. Les pièces reçues hors délai doivent être identifiées et suivies.' },
+    { question: 'Que faut-il faire avant de transmettre les fiches employés à la saisie ?', options: ['Calculer les différents éléments de rémunération', 'Supprimer les éléments variables', 'Envoyer directement les fiches au client', 'Classer la déclaration définitive'], answer: 0, explanation: 'La méthodologie prévoit le calcul des différents éléments de rémunération avant la transmission des fiches à la saisie.' },
+    { question: 'Quel ensemble d’éléments doit faire l’objet d’un contrôle spécifique ?', options: ['Uniquement le salaire de base', 'Les avantages en nature, indemnités de congés et primes d’ancienneté', 'Uniquement les frais de déplacement', 'Seulement les documents administratifs'], answer: 1, explanation: 'Les avantages en nature, les indemnités de congés et les primes d’ancienneté font partie des éléments sensibles à évaluer et documenter.' },
+    { question: 'Quel repère doit être suivi pour contrôler les primes d’ancienneté ?', options: ['La couleur de la fiche de paie', 'La date d’embauche de chaque salarié', 'Le numéro de la quittance fiscale', 'Le nombre de pages du journal de paie'], answer: 1, explanation: 'La date d’embauche doit être notée et suivie pour apprécier l’ancienneté. Le repère du support — après trois ans, taux de 3 %, taux évolutif — doit être confirmé pour la période applicable.' },
+    { question: 'Que signifie le principe de cumul des rémunérations dans la revue de la paie ?', options: ['Ne conserver qu’une seule rémunération par salarié', 'Prendre en compte les rémunérations perçues au cours d’un même mois', 'Additionner uniquement les primes annuelles', 'Écarter les éléments variables'], answer: 1, explanation: 'Il faut s’assurer du respect du principe de cumul des rémunérations perçues au cours d’un même mois, notamment lorsque plusieurs éléments ou situations se cumulent.' },
+    { question: 'Quels documents édités doivent être comparés aux informations des fiches employés ?', options: ['La fiche de paie, le journal de paie et les déclarations fiscale et sociale', 'Uniquement le contrat de travail', 'La balance générale sans les états de paie', 'Le planning annuel du cabinet'], answer: 0, explanation: 'La fiche de paie, le journal de paie et les déclarations fiscale et sociale doivent être conformes aux informations mentionnées sur les fiches employés.' },
+    { question: 'Que faut-il faire après l’édition des documents de paie ?', options: ['Les transmettre à la revue', 'Les supprimer immédiatement', 'Les envoyer à tous les collaborateurs du cabinet', 'Les classer sans contrôle'], answer: 0, explanation: 'Les documents édités sont transmis à la revue. Les observations doivent ensuite être prises en compte avant la transmission au client.' },
+    { question: 'Quelle séquence de clôture est correcte ?', options: ['Payer, saisir, calculer, puis obtenir les fiches', 'Calculer, saisir, éditer, revoir, corriger, transmettre, payer et classer', 'Classer les fiches avant tout calcul', 'Transmettre au client avant la revue'], answer: 1, explanation: 'Le circuit attendu part des fiches et des calculs, passe par la saisie et l’édition, la revue et les corrections, puis aboutit à la transmission, au paiement et au classement.' },
+    { question: 'Que faut-il classer à la fin du traitement ?', options: ['Uniquement le fichier de travail personnel', 'La déclaration définitive et les feuilles de travail', 'Tous les documents dans un espace accessible à tous', 'Aucune preuve après paiement'], answer: 1, explanation: 'La déclaration définitive et les feuilles de travail doivent être classées. Les preuves de transmission, de paiement et les observations apurées complètent le dossier.' }
+  ];
+  const questions5 = document.querySelector('#quiz-questions-5');
+  const progressLabel5 = document.querySelector('#quiz-progress-label-5');
+  const progressBar5 = document.querySelector('#quiz-progress-bar-5');
+  const message5 = document.querySelector('#quiz-form-message-5');
+  const submit5 = document.querySelector('#quiz-submit-5');
+  const result5 = document.querySelector('#quiz-result-5');
+  const resultScore5 = document.querySelector('#quiz-result-score-5');
+  const resultMessage5 = document.querySelector('#quiz-result-message-5');
+  const correctCount5 = document.querySelector('#quiz-correct-count-5');
+  const review5 = document.querySelector('#quiz-review-list-5');
+  const reset5 = document.querySelector('#quiz-reset-5');
+
+  function renderQuiz5() {
+    questions5.innerHTML = quizData5.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-5-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questions5.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuiz5));
+    updateQuiz5();
+  }
+
+  function updateQuiz5() {
+    const answered = quizData5.filter((_, index) => quizForm5.querySelector(`input[name="question-5-${index}"]:checked`)).length;
+    progressLabel5.textContent = `${answered} / ${quizData5.length} répondues`;
+    progressBar5.style.width = `${answered / quizData5.length * 100}%`;
+  }
+
+  function showQuizResult5() {
+    const answers = quizData5.map((_, index) => quizForm5.querySelector(`input[name="question-5-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message5.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm5.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData5.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      quizForm5.querySelectorAll(`input[name="question-5-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore5.innerHTML = `${score}<span>/20</span>`;
+    correctCount5.textContent = `${correct} / ${quizData5.length} bonnes réponses`;
+    resultMessage5.textContent = score >= 16 ? 'Très bon résultat. Vous maîtrisez le circuit de traitement et les contrôles essentiels de la paie.' : score >= 10 ? 'Les bases sont acquises. Relisez la confidentialité, les pièces à obtenir et les contrôles avant transmission.' : 'Reprenez le circuit complet : protéger, obtenir, calculer, revoir, transmettre, payer et classer.';
+    review5.innerHTML = quizData5.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message5.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message5.className = 'quiz-form-message success';
+    submit5.disabled = true;
+    result5.hidden = false;
+    result5.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm5.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult5(); });
+  reset5.addEventListener('click', () => { quizForm5.reset(); quizForm5.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit5.disabled = false; result5.hidden = true; message5.textContent = ''; message5.className = 'quiz-form-message'; renderQuiz5(); quizForm5.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz5();
+}
