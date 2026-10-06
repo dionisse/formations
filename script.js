@@ -684,11 +684,11 @@ if (quizForm7) {
     const next = developerMode ? guidedGroups.length : firstIncomplete();
     sequenceCards.forEach((card) => {
       const number = Number(card.dataset.sequence);
-      const previewOnly = number > next;
-      card.classList.toggle('preview-only', previewOnly);
-      card.classList.remove('locked');
+      const locked = !developerMode && number > next;
+      card.classList.toggle('preview-only', locked);
+      card.classList.toggle('locked', locked);
       card.setAttribute('aria-current', number === currentNumber ? 'step' : 'false');
-      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', 'false');
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', String(locked));
     });
     railSteps.forEach((railStep) => {
       const number = Number(railStep.dataset.sequence);
@@ -823,6 +823,10 @@ if (quizForm7) {
       event.preventDefault();
       event.stopImmediatePropagation();
       const number = Number(card.dataset.sequence);
+      if (!isUnlocked(number)) {
+        showLockedMessage(number);
+        return;
+      }
       const willOpen = !card.classList.contains('open');
       sequenceCards.forEach((other) => {
         other.classList.remove('open');
