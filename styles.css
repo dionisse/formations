@@ -113,12 +113,6 @@ main>section[hidden],.guided-completion[hidden]{display:none!important}.guided-b
   .footer-top>p,.footer-links{grid-column:auto;grid-row:auto}
 }
 
-@media(max-width:720px){
-  .sequence-card.locked{opacity:.66;cursor:not-allowed}
-  .sequence-card.locked .sequence-toggle{cursor:not-allowed;pointer-events:auto}
-  .sequence-card.locked .sequence-main{filter:saturate(.75)}
-  .program-rail .rail-step.locked{pointer-events:auto}
-}
 
 /* Le contenu pédagogique n'est pas sélectionnable ou copiable depuis l'interface. */
 html,body{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
