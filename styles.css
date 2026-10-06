@@ -166,12 +166,3 @@ img{ -webkit-user-drag:none; user-drag:none }
   .planning-rules-head,.practice-header{display:block}
   .planning-rules-head>p,.practice-header>p{margin-top:14px;max-width:none}
 }
-
-/* Même traitement vertical pour les autres cheminements et flux des séquences. */
-@media(max-width:820px){
-  .review-cycle-steps,.program-anatomy-flow,.allocation-rhythm,.declaration-workflow{display:flex;flex-direction:column;align-items:stretch;gap:7px}
-  .review-cycle-step,.program-anatomy-flow>div,.allocation-rhythm>div,.declaration-workflow>div{width:100%;min-width:0;min-height:0}
-  .review-cycle-steps>i,.program-anatomy-flow>i,.allocation-rhythm>i,.declaration-workflow>i{display:flex;align-items:center;justify-content:center;height:18px;line-height:1;transform:rotate(90deg)}
-  .file-obligations{grid-template-columns:1fr}
-  .allocation-summary{grid-template-columns:1fr}
-}
