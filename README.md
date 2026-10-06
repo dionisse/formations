@@ -141,3 +141,7 @@ Le parcours propose désormais un bouton WhatsApp qui ouvre une conversation pr�
 Après réception du message, le cabinet ouvre l’espace développeur avec `?mode=developer`, renseigne le code et le nom reçus, puis choisit `Enregistrer en attente`, `Valider le certificat` ou `Révoquer le certificat`. Les décisions sont conservées côté serveur dans `storage/certificates.json` (fichier ignoré par Git). Le bouton de téléchargement du participant reste bloqué tant que le statut serveur n’est pas `validated`.
 
 En production, l’accès aux API de gestion des certificats est réservé aux utilisateurs listés dans la variable `DEVELOPER_EMAILS`, séparés par des virgules. En local, `AUTH_BYPASS=true` permet de tester l’espace développeur.
+
+### Protection de copie du contenu
+
+La page de formation et le classeur bloquent la sélection de texte, le menu contextuel, le glisser-déposer d’images et les raccourcis `Ctrl/Cmd+A`, `Ctrl/Cmd+C` et `Ctrl/Cmd+X`, sur ordinateur comme sur mobile. Les champs de formulaire restent sélectionnables et utilisables. Cette protection limite la copie directe depuis l’interface, mais une protection côté navigateur ne peut pas empêcher un utilisateur déterminé d’utiliser les outils de développement, le code source ou une capture d’écran.

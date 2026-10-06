@@ -20,3 +20,8 @@
   .progress-track{min-width:0}
   input,select,textarea{font-size:16px}
 }
+
+/* Protection de copie également appliquée au classeur sur ordinateur et mobile. */
+html,body{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
+input,textarea,select,[contenteditable="true"]{ -webkit-user-select:text; user-select:text; -webkit-touch-callout:default }
+img{ -webkit-user-drag:none; user-drag:none }

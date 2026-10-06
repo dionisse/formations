@@ -1,3 +1,21 @@
+
+
+/* Protection de copie : elle bloque les gestes courants sans empêcher la saisie dans les formulaires. */
+(() => {
+  const isEditable = (target) => target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+  const preventContentAction = (event) => {
+    if (!isEditable(event.target)) event.preventDefault();
+  };
+  ['copy', 'cut', 'contextmenu', 'selectstart', 'dragstart'].forEach((eventName) => {
+    document.addEventListener(eventName, preventContentAction, true);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (isEditable(event.target)) return;
+    if ((event.ctrlKey || event.metaKey) && ['a', 'c', 'x'].includes(event.key.toLowerCase())) event.preventDefault();
+  }, true);
+  document.querySelectorAll('img').forEach((image) => { image.draggable = false; });
+})();
+
 const menuToggle = document.querySelector('.menu-toggle');
 const mainNav = document.querySelector('.main-nav');
 const backToTop = document.querySelector('.back-to-top');
