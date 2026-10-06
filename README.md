@@ -133,3 +133,11 @@ Ce mode affiche explicitement « Accès développeur », désactive la clôture 
 La progression des séquences et la séquence en cours sont conservées dans le stockage local du navigateur (`fiscale-guided-sequences-v1` et `fiscale-guided-current-v1`). Les informations du participant, l’aperçu et l’état de confirmation du règlement utilisent des clés séparées (`fiscale-certificate-profile-v1` et `fiscale-certificate-state-v1`) afin de reprendre la demande sur le même appareil.
 
 Le bouton de règlement ouvre le prestataire dans une nouvelle fenêtre sans afficher son adresse dans l’interface. L’application ne prétend pas vérifier un paiement côté client : elle attend une confirmation manuelle dans le flux avant d’activer le bouton de téléchargement. Le bouton PDF ouvre la boîte d’impression du navigateur avec une feuille dédiée au certificat ; choisir « Enregistrer au format PDF ». Une intégration de retour serveur ou de webhook du prestataire sera nécessaire pour une validation financière automatisée en production.
+
+### Validation manuelle des certificats par WhatsApp
+
+Le parcours propose désormais un bouton WhatsApp qui ouvre une conversation préremplie avec le code du certificat et les informations saisies. Le participant doit joindre manuellement son reçu de paiement dans WhatsApp au numéro `+229 0190895323`, car un navigateur ne peut pas joindre automatiquement un fichier local à une conversation WhatsApp.
+
+Après réception du message, le cabinet ouvre l’espace développeur avec `?mode=developer`, renseigne le code et le nom reçus, puis choisit `Enregistrer en attente`, `Valider le certificat` ou `Révoquer le certificat`. Les décisions sont conservées côté serveur dans `storage/certificates.json` (fichier ignoré par Git). Le bouton de téléchargement du participant reste bloqué tant que le statut serveur n’est pas `validated`.
+
+En production, l’accès aux API de gestion des certificats est réservé aux utilisateurs listés dans la variable `DEVELOPER_EMAILS`, séparés par des virgules. En local, `AUTH_BYPASS=true` permet de tester l’espace développeur.

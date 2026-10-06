@@ -22,6 +22,8 @@ const SESSION_TTL = 8 * 60 * 60 * 1000;
 const dossierPath = path.join(ROOT, 'private', 'dossier-data.json');
 const fileStoragePath = path.join(ROOT, 'storage', 'dossier-files');
 const fileIndexPath = path.join(ROOT, 'storage', 'file-index.json');
+const certificatesPath = path.join(ROOT, 'storage', 'certificates.json');
+const DEVELOPER_EMAILS = new Set((process.env.DEVELOPER_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const sessions = new Map();
 const MIME_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -57,6 +59,33 @@ async function saveUsers(users) {
   await fs.mkdir(path.dirname(usersPath), { recursive: true });
   await fs.writeFile(usersPath, JSON.stringify(users, null, 2));
 }
+async function getCertificates() {
+  try {
+    const certificates = await readJson(certificatesPath);
+    return { certificates: Array.isArray(certificates.certificates) ? certificates.certificates : [] };
+  } catch {
+    return { certificates: [] };
+  }
+}
+async function saveCertificates(certificates) {
+  await fs.mkdir(path.dirname(certificatesPath), { recursive: true });
+  await fs.writeFile(certificatesPath, JSON.stringify(certificates, null, 2));
+}
+function certificateReference(value) {
+  return String(value || '').trim().replace(/[^A-Za-z0-9-]/g, '').slice(0, 100);
+}
+function publicCertificate(certificate, includePrivate = false) {
+  const base = {
+    reference: certificate.reference,
+    participantName: certificate.participantName,
+    profile: certificate.profile,
+    status: certificate.status,
+    createdAt: certificate.createdAt,
+    validatedAt: certificate.validatedAt || null,
+    updatedAt: certificate.updatedAt
+  };
+  return includePrivate ? { ...base, birthDate: certificate.birthDate || '', birthPlace: certificate.birthPlace || '', nationality: certificate.nationality || '' } : base;
+}
 async function readUpload(req) {
   const declaredLength = Number(req.headers['content-length'] || 0);
   if (declaredLength > MAX_FILE_SIZE) throw new Error('file_too_large');
@@ -89,6 +118,16 @@ function currentUser(req) {
 function requireUser(req, res) {
   const user = currentUser(req);
   if (!user) { json(res, 401, { error: 'Authentification requise.' }); return null; }
+  return user;
+}
+
+function requireDeveloper(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return null;
+  if (!user.developmentBypass && !DEVELOPER_EMAILS.has(String(user.email || '').toLowerCase())) {
+    json(res, 403, { error: 'Accès développeur requis.' });
+    return null;
+  }
   return user;
 }
 
@@ -197,6 +236,67 @@ async function handleGoogleAuth(req, res, url) {
 
 async function handleApi(req, res, url) {
   const pathname = url.pathname;
+  if (req.method === 'GET' && pathname === '/api/certificates/verify') {
+    const reference = certificateReference(url.searchParams.get('reference'));
+    if (!reference) return json(res, 400, { error: 'Code de certificat manquant.' });
+    const { certificates } = await getCertificates();
+    const certificate = certificates.find((item) => item.reference === reference);
+    if (!certificate) return json(res, 200, { valid: false, status: 'not_found', reference });
+    return json(res, 200, {
+      valid: certificate.status === 'validated',
+      status: certificate.status,
+      reference: certificate.reference,
+      participantName: certificate.status === 'validated' ? certificate.participantName : '',
+      profile: certificate.status === 'validated' ? certificate.profile : '',
+      validatedAt: certificate.validatedAt || null
+    });
+  }
+  if (pathname === '/api/certificates' && req.method === 'GET') {
+    if (!requireDeveloper(req, res)) return;
+    const { certificates } = await getCertificates();
+    return json(res, 200, { certificates: certificates.map((certificate) => publicCertificate(certificate, true)).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) });
+  }
+  if (pathname === '/api/certificates' && req.method === 'POST') {
+    if (!requireDeveloper(req, res)) return;
+    const body = await requestBody(req);
+    const reference = certificateReference(body.reference);
+    const participantName = String(body.participantName || '').trim().slice(0, 180);
+    const profile = String(body.profile || '').trim().slice(0, 80);
+    if (!reference || !participantName) return json(res, 400, { error: 'Le code et le nom du participant sont obligatoires.' });
+    const status = ['pending', 'validated', 'revoked'].includes(body.status) ? body.status : 'pending';
+    const now = new Date().toISOString();
+    const certificates = await getCertificates();
+    const existing = certificates.certificates.find((certificate) => certificate.reference === reference);
+    if (existing) {
+      existing.participantName = participantName;
+      existing.profile = profile;
+      existing.birthDate = String(body.birthDate || '').slice(0, 30);
+      existing.birthPlace = String(body.birthPlace || '').trim().slice(0, 120);
+      existing.nationality = String(body.nationality || '').trim().slice(0, 80);
+      existing.status = status;
+      existing.validatedAt = status === 'validated' ? (existing.validatedAt || now) : null;
+      existing.updatedAt = now;
+    } else {
+      certificates.certificates.push({ reference, participantName, profile, birthDate: String(body.birthDate || '').slice(0, 30), birthPlace: String(body.birthPlace || '').trim().slice(0, 120), nationality: String(body.nationality || '').trim().slice(0, 80), status, createdAt: now, validatedAt: status === 'validated' ? now : null, updatedAt: now });
+    }
+    await saveCertificates(certificates);
+    const saved = certificates.certificates.find((certificate) => certificate.reference === reference);
+    return json(res, existing ? 200 : 201, { certificate: publicCertificate(saved, true) });
+  }
+  if (pathname.startsWith('/api/certificates/') && req.method === 'PATCH') {
+    if (!requireDeveloper(req, res)) return;
+    const reference = certificateReference(pathname.slice('/api/certificates/'.length));
+    const body = await requestBody(req);
+    if (!['pending', 'validated', 'revoked'].includes(body.status)) return json(res, 400, { error: 'Statut de certificat invalide.' });
+    const certificates = await getCertificates();
+    const certificate = certificates.certificates.find((item) => item.reference === reference);
+    if (!certificate) return json(res, 404, { error: 'Certificat introuvable.' });
+    certificate.status = body.status;
+    certificate.validatedAt = body.status === 'validated' ? (certificate.validatedAt || new Date().toISOString()) : null;
+    certificate.updatedAt = new Date().toISOString();
+    await saveCertificates(certificates);
+    return json(res, 200, { certificate: publicCertificate(certificate, true) });
+  }
   if (req.method === 'GET' && pathname === '/api/session') {
     const user = currentUser(req);
     return user ? json(res, 200, { authenticated: true, ...(user.developmentBypass ? { developmentBypass: true } : {}), user: { email: user.email, name: user.name, ...(user.picture ? { picture: user.picture } : {}) } }) : json(res, 401, { authenticated: false });

@@ -845,7 +845,7 @@ if (quizForm7) {
 })();
 
 
-/* Certificat : collecte locale, aperçu filigrané et téléchargement après confirmation du règlement. */
+/* Certificat : aperçu, demande WhatsApp et validation manuelle par le cabinet. */
 (() => {
   const certificateSection = document.querySelector('#certificate-section');
   const certificateOffer = document.querySelector('#certificate-offer');
@@ -856,15 +856,25 @@ if (quizForm7) {
   const certificatePreviewPanel = document.querySelector('#certificate-preview-panel');
   const certificateEdit = document.querySelector('#certificate-edit');
   const paymentButton = document.querySelector('#certificate-pay');
+  const whatsappButton = document.querySelector('#certificate-whatsapp');
+  const verifyButton = document.querySelector('#certificate-verify');
+  const validationStatus = document.querySelector('#certificate-validation-status');
   const paymentConfirm = document.querySelector('#certificate-payment-confirm');
   const downloadButton = document.querySelector('#certificate-download');
+  const developerPanel = document.querySelector('#developer-certificates-panel');
+  const developerForm = document.querySelector('#developer-certificate-form');
+  const developerList = document.querySelector('#developer-certificates-list');
+  const developerMessage = document.querySelector('#developer-certificates-message');
   if (!certificateSection || !certificateForm) return;
 
   const profileStorageKey = 'fiscale-certificate-profile-v1';
   const stateStorageKey = 'fiscale-certificate-state-v1';
   const paymentUrl = 'https://goespay.io/pay/FJK9BGDH';
+  const whatsappNumber = '2290190895323';
+  let developerMode = new URLSearchParams(window.location.search).get('mode') === 'developer';
+  try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
   let profile = {};
-  let state = { accepted: false, previewReady: false, paymentConfirmed: false, reference: '' };
+  let state = { accepted: false, previewReady: false, paymentConfirmed: false, validated: false, whatsappSent: false, reference: '' };
 
   function readLocal(key, fallback) {
     try {
@@ -900,6 +910,11 @@ if (quizForm7) {
     return state.reference;
   }
 
+  function setValidationStatus(message, type = '') {
+    validationStatus.textContent = message;
+    validationStatus.className = type ? `is-${type}` : '';
+  }
+
   function renderPreview() {
     setPreviewValue('certificate-participant-name', profile.participantName);
     setPreviewValue('certificate-birth-date', formatBirthDate(profile.birthDate));
@@ -908,7 +923,10 @@ if (quizForm7) {
     setPreviewValue('certificate-profile', profile.profile);
     setPreviewValue('certificate-reference', createReference());
     paymentConfirm.checked = state.paymentConfirmed === true;
-    downloadButton.disabled = !paymentConfirm.checked;
+    downloadButton.disabled = !state.validated;
+    if (state.validated) setValidationStatus('Certificat validé par le cabinet. Le téléchargement est disponible.', 'success');
+    else if (state.paymentConfirmed) setValidationStatus('Paiement déclaré. En attente de validation par le cabinet.', 'pending');
+    else setValidationStatus('En attente du règlement et de la transmission du reçu.', 'pending');
     certificatePreviewPanel.hidden = false;
     certificateFormPanel.hidden = true;
     saveLocal();
@@ -924,8 +942,115 @@ if (quizForm7) {
     saveLocal();
   }
 
-  certificateStart.addEventListener('click', openForm);
+  async function verifyCertificate() {
+    const reference = createReference();
+    verifyButton.disabled = true;
+    setValidationStatus('Vérification de l’état auprès du cabinet…', 'pending');
+    try {
+      const response = await fetch(`/api/certificates/verify?reference=${encodeURIComponent(reference)}`, { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'verification_failed');
+      state.validated = result.valid === true;
+      if (state.validated) {
+        setValidationStatus(`Certificat ${reference} validé par le cabinet.`, 'success');
+        downloadButton.disabled = false;
+      } else if (result.status === 'pending') {
+        setValidationStatus('Demande reçue. Le cabinet doit encore valider le certificat.', 'pending');
+        downloadButton.disabled = true;
+      } else if (result.status === 'revoked') {
+        setValidationStatus('Ce certificat a été révoqué. Contactez le cabinet.', 'error');
+        downloadButton.disabled = true;
+      } else {
+        setValidationStatus('Code non encore enregistré. Envoyez le reçu et le code par WhatsApp.', 'error');
+        downloadButton.disabled = true;
+      }
+      saveLocal();
+    } catch (error) {
+      setValidationStatus('Service de vérification momentanément indisponible. Réessayez plus tard.', 'error');
+      downloadButton.disabled = true;
+    } finally {
+      verifyButton.disabled = false;
+    }
+  }
 
+  function sendWhatsAppRequest() {
+    const reference = createReference();
+    const message = [
+      'Bonjour GOBEX,',
+      'Je souhaite faire valider mon certificat de participation.',
+      '',
+      `Code du certificat : ${reference}`,
+      `Nom et prénoms : ${profile.participantName || ''}`,
+      `Date de naissance : ${formatBirthDate(profile.birthDate)}`,
+      `Lieu de naissance : ${profile.birthPlace || ''}`,
+      `Nationalité : ${profile.nationality || ''}`,
+      `Profil : ${profile.profile || ''}`,
+      '',
+      'Je joins le reçu de paiement à ce message. Merci de valider mon certificat.'
+    ].join('\n');
+    state.whatsappSent = true;
+    saveLocal();
+    setValidationStatus('WhatsApp ouvert. Joignez le reçu avant d’envoyer le message.', 'pending');
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+  }
+
+  async function parseResponse(response) {
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'request_failed');
+    return result;
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
+  }
+
+  function developerStatusLabel(status) {
+    return { pending: 'En attente', validated: 'Validé', revoked: 'Révoqué' }[status] || status;
+  }
+
+  function renderDeveloperCertificates(certificates) {
+    if (!certificates.length) {
+      developerList.innerHTML = '<p class="developer-certificates-empty">Aucune demande enregistrée. Saisissez le code reçu par WhatsApp.</p>';
+      return;
+    }
+    developerList.innerHTML = certificates.map((certificate) => `<article class="developer-certificate-item"><div><strong>${escapeHtml(certificate.reference)}</strong><span>${escapeHtml(certificate.participantName)} · ${escapeHtml(certificate.profile || 'Profil non renseigné')}</span><small>${developerStatusLabel(certificate.status)} · ${new Date(certificate.updatedAt).toLocaleString('fr-FR')}</small></div><div class="developer-certificate-actions"><button type="button" data-certificate-status="validated" data-certificate-reference="${escapeHtml(certificate.reference)}">Valider</button><button type="button" data-certificate-status="pending" data-certificate-reference="${escapeHtml(certificate.reference)}">En attente</button><button type="button" data-certificate-status="revoked" data-certificate-reference="${escapeHtml(certificate.reference)}">Révoquer</button></div></article>`).join('');
+  }
+
+  async function loadDeveloperCertificates() {
+    if (!developerPanel) return;
+    developerPanel.hidden = false;
+    try {
+      const result = await parseResponse(await fetch('/api/certificates', { cache: 'no-store' }));
+      renderDeveloperCertificates(result.certificates || []);
+      developerMessage.textContent = '';
+    } catch (error) {
+      developerList.innerHTML = '<p class="developer-certificates-empty">Impossible de charger les demandes. Vérifiez la session développeur du serveur.</p>';
+    }
+  }
+
+  async function saveDeveloperCertificate(body) {
+    developerMessage.textContent = 'Enregistrement en cours…';
+    try {
+      await parseResponse(await fetch('/api/certificates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+      developerMessage.textContent = 'Décision enregistrée.';
+      developerForm.reset();
+      await loadDeveloperCertificates();
+    } catch (error) {
+      developerMessage.textContent = error.message === 'Accès développeur requis.' ? 'Accès refusé : utilisez la session développeur autorisée.' : 'Impossible d’enregistrer cette décision.';
+    }
+  }
+
+  async function changeDeveloperStatus(reference, status) {
+    try {
+      await parseResponse(await fetch(`/api/certificates/${encodeURIComponent(reference)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }));
+      developerMessage.textContent = `Certificat ${reference} : ${developerStatusLabel(status)}.`;
+      await loadDeveloperCertificates();
+    } catch (error) {
+      developerMessage.textContent = 'Impossible de modifier le statut de ce certificat.';
+    }
+  }
+
+  certificateStart.addEventListener('click', openForm);
   certificateForm.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!certificateForm.checkValidity()) {
@@ -934,35 +1059,42 @@ if (quizForm7) {
       return;
     }
     profile = Object.fromEntries(new FormData(certificateForm).entries());
-    state.accepted = true;
-    state.previewReady = true;
+    state = { ...state, accepted: true, previewReady: true, paymentConfirmed: false, validated: false, whatsappSent: false, reference: '' };
     certificateMessage.textContent = '';
     renderPreview();
   });
-
   certificateEdit.addEventListener('click', () => {
     certificatePreviewPanel.hidden = true;
     certificateFormPanel.hidden = false;
     certificateForm.querySelector('#participant-name')?.focus();
   });
-
-  paymentButton.addEventListener('click', () => {
-    window.open(paymentUrl, '_blank', 'noopener,noreferrer,width=520,height=720');
-  });
-
+  paymentButton.addEventListener('click', () => window.open(paymentUrl, '_blank', 'noopener,noreferrer,width=520,height=720'));
+  whatsappButton.addEventListener('click', sendWhatsAppRequest);
+  verifyButton.addEventListener('click', verifyCertificate);
   paymentConfirm.addEventListener('change', () => {
     state.paymentConfirmed = paymentConfirm.checked;
-    downloadButton.disabled = !state.paymentConfirmed;
+    if (state.paymentConfirmed && !state.validated) setValidationStatus('Paiement déclaré. Envoyez le reçu par WhatsApp puis attendez la validation du cabinet.', 'pending');
     saveLocal();
   });
-
   downloadButton.addEventListener('click', () => {
-    if (!state.paymentConfirmed) return;
+    if (!state.validated) return;
     document.body.classList.add('printing-certificate');
     const clearPrintMode = () => document.body.classList.remove('printing-certificate');
     window.addEventListener('afterprint', clearPrintMode, { once: true });
     window.print();
     window.setTimeout(clearPrintMode, 1500);
+  });
+
+  developerForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const reference = document.querySelector('#developer-certificate-reference').value.trim();
+    const participantName = document.querySelector('#developer-certificate-name').value.trim();
+    if (!reference || !participantName) { developerMessage.textContent = 'Le code et le nom sont obligatoires.'; return; }
+    saveDeveloperCertificate({ reference, participantName, profile: document.querySelector('#developer-certificate-profile').value.trim(), status: document.querySelector('#developer-certificate-status').value });
+  });
+  developerList?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-certificate-status]');
+    if (button) changeDeveloperStatus(button.dataset.certificateReference, button.dataset.certificateStatus);
   });
 
   profile = readLocal(profileStorageKey, {});
@@ -976,6 +1108,7 @@ if (quizForm7) {
   if (state.accepted) certificateOffer.hidden = true;
   if (state.previewReady && profile.participantName) renderPreview();
   else if (state.accepted) certificateFormPanel.hidden = false;
+  if (developerMode) loadDeveloperCertificates();
 })();
 
 const finalQuizForm = document.querySelector('#final-quiz');

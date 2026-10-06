@@ -455,12 +455,27 @@
             <div class="certificate-payment-copy"><span class="certificate-kicker">Étape 3 · Règlement</span><h3>Finalisez votre demande</h3><p>Ouvrez la page de règlement dans une nouvelle fenêtre. Le lien de paiement n’est pas affiché dans cette interface.</p></div>
             <div class="certificate-payment-actions">
               <button class="button button-primary" id="certificate-pay" type="button">Régler les frais du certificat <span>↗</span></button>
-              <label class="certificate-payment-confirm"><input id="certificate-payment-confirm" type="checkbox" /> <span>Je confirme avoir effectué le règlement.</span></label>
-              <p class="certificate-payment-note">Le téléchargement reste bloqué jusqu’à cette confirmation dans le flux. La vérification financière définitive relève du prestataire et du cabinet.</p>
+              <button class="button button-whatsapp" id="certificate-whatsapp" type="button">Envoyer le reçu par WhatsApp <span>↗</span></button>
+              <label class="certificate-payment-confirm"><input id="certificate-payment-confirm" type="checkbox" /> <span>J’ai effectué le règlement et envoyé le reçu.</span></label>
+              <p class="certificate-payment-note">Indiquez le code du certificat dans WhatsApp et joignez votre reçu. Le téléchargement sera activé après validation par le cabinet.</p>
+              <div class="certificate-validation-row"><button class="button button-outline" id="certificate-verify" type="button">Vérifier l’état du certificat</button><span id="certificate-validation-status" aria-live="polite">En attente de validation.</span></div>
               <button class="button button-dark" id="certificate-download" type="button" disabled>Télécharger le certificat PDF <span>↓</span></button>
             </div>
           </div>
         </div>
+
+        <section class="developer-certificates-panel" id="developer-certificates-panel" hidden>
+          <div class="developer-certificates-heading"><div><span class="certificate-kicker">Espace développeur · validation manuelle</span><h3>Certificats reçus par WhatsApp</h3><p>Après réception du reçu et du code, recherchez ou enregistrez la demande puis validez-la. Cette zone n’est pas visible dans le parcours normal.</p></div><span class="developer-lock-badge">ACCÈS DEV</span></div>
+          <form class="developer-certificate-form" id="developer-certificate-form" novalidate>
+            <div><label for="developer-certificate-reference">Code du certificat</label><input id="developer-certificate-reference" required placeholder="GOBEX-FORM-2026-123456" /></div>
+            <div><label for="developer-certificate-name">Nom et prénoms</label><input id="developer-certificate-name" required placeholder="Nom communiqué sur WhatsApp" /></div>
+            <div><label for="developer-certificate-profile">Profil</label><input id="developer-certificate-profile" placeholder="Fiscaliste, comptable…" /></div>
+            <div><label for="developer-certificate-status">Action</label><select id="developer-certificate-status"><option value="pending">Enregistrer en attente</option><option value="validated">Valider le certificat</option><option value="revoked">Révoquer le certificat</option></select></div>
+            <button class="button button-primary" type="submit">Enregistrer la décision <span>→</span></button>
+          </form>
+          <p class="developer-certificates-message" id="developer-certificates-message" aria-live="polite"></p>
+          <div class="developer-certificates-list" id="developer-certificates-list"><p class="developer-certificates-empty">Chargement des demandes…</p></div>
+        </section>
       </div>
     </section>
 
