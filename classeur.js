@@ -44,9 +44,11 @@ async function uploadRequest(url, file, method = 'POST') {
 }
 
 function showLogin(message = '') {
+  const authMessage = { 'google-not-configured': 'Google n’est pas encore configuré sur ce serveur.', 'google-state-error': 'La tentative Google a expiré. Recommencez la connexion.', 'google-denied': 'La connexion Google a été annulée.', 'google-error': 'Google n’a pas pu confirmer votre identité. Réessayez.' }[new URLSearchParams(window.location.search).get('auth')] || '';
   appView.hidden = true;
   loginView.hidden = false;
-  loginError.textContent = message;
+  loginError.textContent = message || authMessage;
+  if (window.location.search) window.history.replaceState({}, document.title, window.location.pathname);
 }
 function requireUser(payload) {
   if (!payload || payload.authenticated !== true || !payload.user || typeof payload.user !== 'object') throw new Error('La session est invalide ou a expiré. Veuillez vous reconnecter.');
@@ -179,22 +181,10 @@ async function openSession() {
     dossier = await request('/api/dossier');
     showApp(user);
     renderFolder(getFolder(currentFolderId));
-  } catch (error) { showLogin(error.message === 'Authentification requise.' ? '' : error.message); }
+  } catch (error) { showLogin(error.message === 'Authentification requise.' || error.message.includes('(401)') ? '' : error.message); }
 }
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  loginError.textContent = '';
-  const button = loginForm.querySelector('button[type="submit"]');
-  button.disabled = true;
-  try {
-    const session = await request('/api/login', { method: 'POST', body: JSON.stringify({ email: loginForm.email.value, password: loginForm.password.value }) });
-    const user = requireUser(session);
-    dossier = await request('/api/dossier');
-    showApp(user);
-    renderFolder(getFolder(currentFolderId));
-  } catch (error) { loginError.textContent = error.message; } finally { button.disabled = false; }
-});
-togglePassword.addEventListener('click', () => { passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password'; togglePassword.textContent = passwordInput.type === 'password' ? '◉' : '◌'; });
+if (loginForm) loginForm.addEventListener('submit', (event) => event.preventDefault());
+if (togglePassword && passwordInput) togglePassword.addEventListener('click', () => { passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password'; togglePassword.textContent = passwordInput.type === 'password' ? '◉' : '◌'; });
 document.querySelector('#logout-button').addEventListener('click', async () => { await request('/api/logout', { method: 'POST' }).catch(() => {}); dossier = null; seenFolders.clear(); showLogin(); });
 folderSearch.addEventListener('input', renderNavigation);
 openSession();

@@ -11,17 +11,19 @@ const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true' || process.env.NODE_E
 // Local development skips authentication by default; production and AUTH_BYPASS=false keep it enabled.
 const AUTH_BYPASS = process.env.NODE_ENV !== 'production' && process.env.AUTH_BYPASS !== 'false';
 const DEVELOPMENT_USER = { email: 'developpement@fiscale.local', name: 'Développement local' };
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/auth/google/callback`;
+const GOOGLE_AUTH_READY = Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REDIRECT_URI);
+const GOOGLE_SCOPES = ['openid', 'email', 'profile'];
+const usersPath = path.join(ROOT, 'storage', 'users.json');
+const oauthStates = new Map();
 const SESSION_TTL = 8 * 60 * 60 * 1000;
-const MAX_LOGIN_ATTEMPTS = 5;
-const ATTEMPT_WINDOW = 15 * 60 * 1000;
-const participantsPath = process.env.PARTICIPANTS_FILE || path.join(ROOT, 'config', 'participants.json');
-const exampleParticipantsPath = path.join(ROOT, 'config', 'participants.example.json');
 const dossierPath = path.join(ROOT, 'private', 'dossier-data.json');
 const fileStoragePath = path.join(ROOT, 'storage', 'dossier-files');
 const fileIndexPath = path.join(ROOT, 'storage', 'file-index.json');
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const sessions = new Map();
-const loginAttempts = new Map();
 const MIME_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 const json = (res, status, payload, headers = {}) => {
@@ -42,6 +44,18 @@ async function getFileIndex() {
 async function saveFileIndex(index) {
   await fs.mkdir(path.dirname(fileIndexPath), { recursive: true });
   await fs.writeFile(fileIndexPath, JSON.stringify(index, null, 2));
+}
+async function getUsers() {
+  try {
+    const users = await readJson(usersPath);
+    return { users: Array.isArray(users.users) ? users.users : [] };
+  } catch {
+    return { users: [] };
+  }
+}
+async function saveUsers(users) {
+  await fs.mkdir(path.dirname(usersPath), { recursive: true });
+  await fs.writeFile(usersPath, JSON.stringify(users, null, 2));
 }
 async function readUpload(req) {
   const declaredLength = Number(req.headers['content-length'] || 0);
@@ -70,7 +84,7 @@ function publicFile(file) {
 function currentUser(req) {
   if (AUTH_BYPASS) return { ...DEVELOPMENT_USER, developmentBypass: true };
   const session = sessionFrom(req);
-  return session ? { email: session.email, name: session.name } : null;
+  return session ? { email: session.email, name: session.name, picture: session.picture || '' } : null;
 }
 function requireUser(req, res) {
   const user = currentUser(req);
@@ -78,52 +92,9 @@ function requireUser(req, res) {
   return user;
 }
 
-async function getParticipants() {
-  try { return (await readJson(participantsPath)).participants || []; }
-  catch { try { return (await readJson(exampleParticipantsPath)).participants || []; } catch { return []; } }
-}
-
 function parseCookies(header = '') {
   return Object.fromEntries(header.split(';').map((part) => part.trim().split('=').map(decodeURIComponent)).filter(([key]) => key));
 }
-
-function passwordParts(stored) {
-  const [algorithm, iterations, keylen, salt, digest] = String(stored || '').split('$');
-  if (algorithm !== 'pbkdf2' || !iterations || !keylen || !salt || !digest) return null;
-  return { iterations: Number(iterations), keylen: Number(keylen), salt, digest: Buffer.from(digest, 'hex') };
-}
-
-function verifyPassword(password, stored) {
-  const parts = passwordParts(stored);
-  if (!parts || !Number.isSafeInteger(parts.iterations) || !Number.isSafeInteger(parts.keylen)) return Promise.resolve(false);
-  return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, Buffer.from(parts.salt, 'hex'), parts.iterations, parts.keylen, 'sha512', (error, derived) => {
-      if (error) return reject(error);
-      resolve(derived.length === parts.digest.length && crypto.timingSafeEqual(derived, parts.digest));
-    });
-  });
-}
-
-const dummyHash = await new Promise((resolve, reject) => {
-  const salt = crypto.randomBytes(16);
-  crypto.pbkdf2('not-a-real-password', salt, 100000, 64, 'sha512', (error, derived) => error ? reject(error) : resolve(`pbkdf2$100000$64$${salt.toString('hex')}$${derived.toString('hex')}`));
-});
-
-function clientKey(req, email) { return `${req.socket.remoteAddress || 'unknown'}:${email}`; }
-function isRateLimited(key) {
-  const item = loginAttempts.get(key);
-  if (!item) return false;
-  if (Date.now() - item.firstAt > ATTEMPT_WINDOW) { loginAttempts.delete(key); return false; }
-  return item.blockedUntil > Date.now();
-}
-function recordFailedAttempt(key) {
-  const item = loginAttempts.get(key) || { count: 0, firstAt: Date.now(), blockedUntil: 0 };
-  if (Date.now() - item.firstAt > ATTEMPT_WINDOW) { item.count = 0; item.firstAt = Date.now(); }
-  item.count += 1;
-  if (item.count >= MAX_LOGIN_ATTEMPTS) item.blockedUntil = Date.now() + ATTEMPT_WINDOW;
-  loginAttempts.set(key, item);
-}
-function clearAttempts(key) { loginAttempts.delete(key); }
 
 function sessionFrom(req) {
   const token = parseCookies(req.headers.cookie).fiscale_session;
@@ -134,6 +105,13 @@ function sessionFrom(req) {
 }
 function cookieHeader(token, maxAge = SESSION_TTL / 1000) {
   return `fiscale_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${COOKIE_SECURE ? '; Secure' : ''}`;
+}
+function oauthStateCookie(value, maxAge = 10 * 60) {
+  return `fiscale_google_state=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/auth/google; Max-Age=${maxAge}${COOKIE_SECURE ? '; Secure' : ''}`;
+}
+function redirect(res, location, headers = {}) {
+  res.writeHead(302, { Location: location, ...headers });
+  res.end();
 }
 async function requestBody(req) {
   let body = '';
@@ -158,28 +136,72 @@ async function saveUploadedContent(req, file) {
   return content.length;
 }
 
+function googleAuthorizationUrl(state) {
+  const params = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, redirect_uri: GOOGLE_REDIRECT_URI, response_type: 'code', scope: GOOGLE_SCOPES.join(' '), access_type: 'online', prompt: 'select_account', state });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+async function exchangeGoogleCode(code) {
+  const response = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, redirect_uri: GOOGLE_REDIRECT_URI, grant_type: 'authorization_code' }) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) throw new Error('google_token_exchange_failed');
+  return payload.access_token;
+}
+async function googleUserInfo(accessToken) {
+  const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.sub || !payload.email) throw new Error('google_userinfo_failed');
+  if (payload.email_verified === false) throw new Error('google_email_not_verified');
+  return payload;
+}
+async function handleGoogleAuth(req, res, url) {
+  if (req.method === 'GET' && url.pathname === '/auth/google') {
+    if (!GOOGLE_AUTH_READY) return redirect(res, '/classeur.html?auth=google-not-configured');
+    const state = crypto.randomBytes(32).toString('base64url');
+    oauthStates.set(state, Date.now() + 10 * 60 * 1000);
+    return redirect(res, googleAuthorizationUrl(state), { 'Set-Cookie': oauthStateCookie(state) });
+  }
+  if (req.method === 'GET' && url.pathname === '/auth/google/callback') {
+    const state = url.searchParams.get('state') || '';
+    const code = url.searchParams.get('code') || '';
+    const savedState = parseCookies(req.headers.cookie).fiscale_google_state;
+    const expiresAt = oauthStates.get(state);
+    oauthStates.delete(state);
+    const clearState = oauthStateCookie('', 0);
+    if (!state || !savedState || savedState !== state || !expiresAt || expiresAt < Date.now()) return redirect(res, '/classeur.html?auth=google-state-error', { 'Set-Cookie': clearState });
+    if (url.searchParams.get('error') || !code) return redirect(res, '/classeur.html?auth=google-denied', { 'Set-Cookie': clearState });
+    try {
+      const profile = await googleUserInfo(await exchangeGoogleCode(code));
+      const users = await getUsers();
+      const now = new Date().toISOString();
+      let user = users.users.find((item) => item.googleSub === profile.sub);
+      if (!user) {
+        user = { googleSub: profile.sub, email: profile.email, name: profile.name || profile.email, picture: profile.picture || '', createdAt: now, lastLoginAt: now };
+        users.users.push(user);
+      } else {
+        user.email = profile.email;
+        user.name = profile.name || user.name || profile.email;
+        user.picture = profile.picture || user.picture || '';
+        user.lastLoginAt = now;
+      }
+      await saveUsers(users);
+      const token = crypto.randomBytes(32).toString('base64url');
+      sessions.set(token, { googleSub: user.googleSub, email: user.email, name: user.name, picture: user.picture, expiresAt: Date.now() + SESSION_TTL });
+      return redirect(res, '/classeur.html?auth=success', { 'Set-Cookie': [cookieHeader(token), clearState] });
+    } catch (error) {
+      console.error('Google authentication failed:', error.message);
+      return redirect(res, '/classeur.html?auth=google-error', { 'Set-Cookie': clearState });
+    }
+  }
+  return json(res, 404, { error: 'Route Google inconnue.' });
+}
+
 async function handleApi(req, res, url) {
   const pathname = url.pathname;
   if (req.method === 'GET' && pathname === '/api/session') {
     const user = currentUser(req);
-    return user ? json(res, 200, { authenticated: true, ...(user.developmentBypass ? { developmentBypass: true } : {}), user: { email: user.email, name: user.name } }) : json(res, 401, { authenticated: false });
+    return user ? json(res, 200, { authenticated: true, ...(user.developmentBypass ? { developmentBypass: true } : {}), user: { email: user.email, name: user.name, ...(user.picture ? { picture: user.picture } : {}) } }) : json(res, 401, { authenticated: false });
   }
-  if (req.method === 'POST' && pathname === '/api/login') {
-    if (AUTH_BYPASS) return json(res, 200, { authenticated: true, developmentBypass: true, user: DEVELOPMENT_USER });
-    const { email = '', password = '' } = await requestBody(req);
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const key = clientKey(req, normalizedEmail);
-    if (isRateLimited(key)) return json(res, 429, { error: 'Trop de tentatives. Réessayez dans quelques minutes.' });
-    const participants = await getParticipants();
-    if (!participants.length) return json(res, 503, { error: 'Aucun participant n’est encore configuré. Ajoutez un participant dans config/participants.json.' });
-    const participant = participants.find((item) => String(item.email || '').toLowerCase() === normalizedEmail);
-    const valid = await verifyPassword(String(password), participant?.passwordHash || dummyHash);
-    if (!participant || !valid) { recordFailedAttempt(key); return json(res, 401, { error: 'Email ou mot de passe incorrect.' }); }
-    clearAttempts(key);
-    const token = crypto.randomBytes(32).toString('base64url');
-    sessions.set(token, { email: normalizedEmail, name: participant.name || normalizedEmail, expiresAt: Date.now() + SESSION_TTL });
-    return json(res, 200, { authenticated: true, user: { email: normalizedEmail, name: participant.name || normalizedEmail } }, { 'Set-Cookie': cookieHeader(token) });
-  }
+  if (req.method === 'POST' && pathname === '/api/login') return json(res, 410, { error: 'La connexion se fait exclusivement avec Google.' });
   if (req.method === 'POST' && pathname === '/api/logout') {
     const token = parseCookies(req.headers.cookie).fiscale_session;
     if (token) sessions.delete(token);
@@ -272,7 +294,8 @@ async function serveStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
+    if (url.pathname.startsWith('/auth/google')) await handleGoogleAuth(req, res, url);
+    else if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
     else await serveStatic(req, res, url.pathname);
   } catch (error) {
     json(res, error.message === 'payload_too_large' ? 413 : 400, { error: 'Requête invalide.' });

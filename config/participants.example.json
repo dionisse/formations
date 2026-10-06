@@ -1,4 +1,0 @@
-{
-  "participants": [],
-  "instructions": "Copiez ce fichier vers config/participants.json, puis ajoutez les emails et les hash de mots de passe générés avec npm run hash-password -- \"VotreMotDePasse\"."
-}

@@ -33,37 +33,36 @@ PORT=8080 npm run server
 
 > Le serveur sécurisé remplace le serveur statique Python utilisé pour la seule page de présentation. Il sert également l'API d'authentification et le classeur protégé.
 
-## Configurer les participants
+## Authentification Google
 
-La liste des participants n'est pas suivie dans Git. Pour créer la configuration locale :
+L’identification et l’inscription des participants se font exclusivement avec Google. En production, créer un client OAuth de type **Application Web** dans Google Cloud, activer les APIs nécessaires et déclarer l’URL de rappel.
 
-```bash
-cp config/participants.example.json config/participants.json
-```
-
-Pour chaque participant, générer un hash de mot de passe sans enregistrer le mot de passe en clair dans le fichier :
+Variables d’environnement nécessaires :
 
 ```bash
-npm run hash-password -- "UnMotDePasseFortEtUnique"
+GOOGLE_CLIENT_ID="votre-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="votre-secret-google"
+GOOGLE_REDIRECT_URI="https://votre-domaine.bj/auth/google/callback"
+NODE_ENV=production
+COOKIE_SECURE=true
 ```
 
-Puis compléter `config/participants.json` :
+En local :
 
-```json
-{
-  "participants": [
-    {
-      "email": "participant@entreprise.bj",
-      "name": "Nom du participant",
-      "passwordHash": "pbkdf2$100000$64$..."
-    }
-  ]
-}
+```bash
+GOOGLE_CLIENT_ID="..." \\
+GOOGLE_CLIENT_SECRET="..." \\
+GOOGLE_REDIRECT_URI="http://localhost:4173/auth/google/callback" \\
+npm run server
 ```
 
-Le champ `passwordHash` doit contenir la valeur produite par la commande précédente. Les adresses sont normalisées en minuscules lors de la connexion. Le fichier `config/participants.json` est ignoré par Git et doit être remplacé par la liste réelle avant toute diffusion.
+Au premier accès, Google crée automatiquement le compte local dans `storage/users.json`. Le serveur demande uniquement les informations d’identité `openid email profile` pour cette étape. L’intégration Google Drive fera l’objet d’une autorisation séparée et progressive. Le serveur ne conserve pas de mot de passe Google. Les secrets OAuth ne doivent jamais être ajoutés au dépôt ni transmis dans le navigateur.
 
-Une configuration de démonstration locale peut être présente dans le checkout (`demo@fiscale.local`). Elle sert uniquement aux tests et ne constitue pas une liste de participants réelle.
+Le mode de développement sans configuration Google utilise encore l’utilisateur fictif `Développement local`. Pour tester le parcours Google en local, désactiver le contournement :
+
+```bash
+AUTH_BYPASS=false GOOGLE_CLIENT_ID="..." GOOGLE_CLIENT_SECRET="..." npm run server
+```
 
 ## Utilisation sécurisée
 
@@ -76,15 +75,15 @@ NODE_ENV=production COOKIE_SECURE=true npm run server
 Le serveur fournit :
 
 - des sessions aléatoires conservées côté serveur, avec cookie `HttpOnly`, `SameSite=Lax` et expiration après 8 heures ;
-- des mots de passe vérifiés avec `PBKDF2` et une comparaison résistante au timing ;
-- une limitation à 5 tentatives par couple adresse IP / email sur une fenêtre de 15 minutes ;
+- une identification Google via OAuth 2.0 et une inscription automatique au premier accès ;
 - des routes protégées pour le contenu et les opérations sur les fichiers du classeur ;
 - aucun accès statique direct à `private/`, `storage/` ou `config/` ;
 - un stockage local des fichiers dans `storage/`, exclu de Git et non exposé comme ressource statique.
 
 Routes principales :
 
-- `POST /api/login` — ouvrir une session avec un email et un mot de passe ;
+- `GET /auth/google` — commencer l’identification Google ;
+- `GET /auth/google/callback` — recevoir la réponse OAuth et ouvrir la session ;
 - `GET /api/session` — vérifier la session courante ;
 - `POST /api/logout` — fermer la session ;
 - `GET /api/dossier` — récupérer les rubriques et les fichiers du dossier ;
@@ -104,7 +103,7 @@ Un navigateur ne transmet pas le chemin absolu du fichier original présent sur 
 npm run build
 ```
 
-Le build Vite vérifie les pages et ressources de présentation. Pour tester le serveur sécurisé, lancer `npm run server`, puis vérifier une connexion avec un participant configuré. Sans session, `/api/dossier` doit répondre `401`; après connexion, il doit répondre `200`.
+Le build Vite vérifie les pages et ressources de présentation. Pour tester le serveur sécurisé, lancer `AUTH_BYPASS=false npm run server` avec la configuration Google. Sans session, `/api/dossier` doit répondre `401`; après connexion Google, il doit répondre `200`.
 
 ## Contenu du dépôt
 
@@ -116,6 +115,5 @@ Le build Vite vérifie les pages et ressources de présentation. Pour tester le 
 - `classeur.js` — connexion, session, déconnexion, recherche, navigation et rendu.
 - `server.mjs` — serveur Node natif, API d'authentification et protection des ressources.
 - `private/dossier-data.json` — 24 rubriques et 7 sous-rubriques pédagogiques, servies uniquement via l'API protégée.
-- `storage/` — index et contenu des fichiers de dossiers, créé automatiquement et ignoré par Git.
-- `config/participants.example.json` — modèle à copier pour préparer la liste des participants.
-- `scripts/hash-password.mjs` — générateur de hash `PBKDF2`.
+- `storage/` — utilisateurs Google, index et contenu des fichiers de dossiers, créé automatiquement et ignoré par Git.
+- `scripts/` — scripts utilitaires conservés pour les opérations de maintenance.

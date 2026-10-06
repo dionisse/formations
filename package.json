@@ -7,8 +7,7 @@
     "dev": "AUTH_BYPASS=true node server.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server.mjs",
-    "hash-password": "node scripts/hash-password.mjs"
+    "server": "node server.mjs"
   },
   "devDependencies": {
     "vite": "^5.4.0"
