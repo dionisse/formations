@@ -42,8 +42,8 @@ function activateSequence(number, scrollToCard = false) {
   railSteps.forEach((step) => step.classList.toggle('active', step.dataset.sequence === String(number)));
   const activeIndex = Math.max(0, Number(number) - 1);
   if (railProgress) {
-    railProgress.style.height = window.innerWidth <= 720 ? '2px' : `${Math.min(100, activeIndex * 16.5 + 5)}%`;
-    railProgress.style.width = window.innerWidth <= 720 ? `${Math.min(100, activeIndex * 16.5 + 5)}%` : '2px';
+    railProgress.style.height = window.innerWidth <= 760 ? '2px' : `${Math.min(100, activeIndex * 16.5 + 5)}%`;
+    railProgress.style.width = window.innerWidth <= 760 ? `${Math.min(100, activeIndex * 16.5 + 5)}%` : '2px';
   }
   if (scrollToCard) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
