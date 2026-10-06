@@ -523,3 +523,78 @@ if (quizForm5) {
   reset5.addEventListener('click', () => { quizForm5.reset(); quizForm5.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit5.disabled = false; result5.hidden = true; message5.textContent = ''; message5.className = 'quiz-form-message'; renderQuiz5(); quizForm5.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz5();
 }
+
+const quizForm7 = document.querySelector('#sequence-quiz-7');
+if (quizForm7) {
+  const quizData7 = [
+    { question: 'Qu’est-ce qu’une consultation fiscale selon la séquence ?', options: ['Une réponse verbale ou écrite à une question posée par le client', 'Un classement automatique des déclarations', 'Une décision prise à la place du client sans analyse', 'Une simple copie du CGI'], answer: 0, explanation: 'La consultation est une réponse verbale ou écrite à une question posée par le client. La consultation verbale doit rester l’exception.' },
+    { question: 'Lequel de ces éléments fait partie des qualités attendues d’un consultant ?', options: ['La technique, le don des langues et l’imagination', 'La rapidité sans vérification', 'La certitude de ne jamais demander de pièce', 'La délégation systématique du raisonnement'], answer: 0, explanation: 'La séquence retient la technique, le « don des langues » et l’imagination comme qualités du consultant.' },
+    { question: 'Avant de répondre à une demande, quel point relatif au client faut-il notamment examiner ?', options: ['Uniquement le montant des honoraires', 'Le conflit d’intérêt éventuel et l’objectif réel du client', 'La couleur du dossier', 'Le nombre de pages de la demande'], answer: 1, explanation: 'Le client peut être une entreprise, un membre de réseau ou un autre bureau. L’identification du client et le contrôle des conflits d’intérêts sont indispensables.' },
+    { question: 'Quelle source appartient aux sources du droit à rechercher dans une consultation ?', options: ['Les conventions fiscales, la loi, les règlements, la jurisprudence et la doctrine', 'Uniquement l’expérience personnelle', 'Les habitudes du client seulement', 'Une réponse non vérifiée trouvée dans un ancien dossier'], answer: 0, explanation: 'La séquence cite les traités et conventions, le CGI, les décrets, règlements et arrêtés, la jurisprudence, la doctrine et les usages ou pratiques.' },
+    { question: 'Que signifie le raisonnement déductif ?', options: ['Tirer une conclusion générale de nombreux cas particuliers', 'Partir d’un principe général pour en dégager des applications particulières', 'Répondre selon son intuition sans source', 'Éviter de segmenter la question'], answer: 1, explanation: 'Le raisonnement déductif part d’un principe général pour en dégager des applications particulières. Le raisonnement inductif suit le mouvement inverse.' },
+    { question: 'Que faut-il vérifier dans un raisonnement logique ?', options: ['L’injection correcte des données, la cohérence de la démarche et la vraisemblance de la conclusion', 'Uniquement la longueur du document', 'Seulement l’opinion du client', 'La présence d’un tableau même sans source'], answer: 0, explanation: 'La séquence demande de vérifier les données injectées, la cohérence de la démarche et la vraisemblance de la conclusion.' },
+    { question: 'Quel est un principe de la règle de l’analyse ?', options: ['Diviser les questions en sous-questions selon une approche logique', 'Répondre à toutes les questions en même temps', 'Perdre de vue l’objectif du client', 'Accepter les automatismes sans contrôle'], answer: 0, explanation: 'La règle de l’analyse consiste notamment à segmenter, diviser les questions en sous-questions et distinguer l’accessoire du principal.' },
+    { question: 'Quel plan correspond à la structure attendue d’une consultation ?', options: ['Rappel de la question, plan, analyse, solutions éventuelles et conclusion', 'Conclusion seule, sans rappeler les faits', 'Annexes uniquement', 'Opinion instinctive puis signature immédiate'], answer: 0, explanation: 'Le plan reprend la question et son environnement, expose la démarche, analyse les aspects, présente si nécessaire les solutions et conclut.' },
+    { question: 'Quelle revue est attendue avant la revue finale d’une consultation ?', options: ['Une revue indépendante par une autre personne et la signature du gérant', 'Aucune revue si le texte semble correct', 'Une revue uniquement par le client', 'Une validation orale sans conservation de version'], answer: 0, explanation: 'La séquence prévoit une revue indépendante par une autre personne avant la revue finale et la signature de la consultation par le gérant.' },
+    { question: 'Quelle règle s’applique au classement des dossiers d’assistance fiscale ?', options: ['Classer les déclarations et documents du plus vieux au plus récent dès que le travail est livré au client', 'Tout classer uniquement à la fin de l’année', 'Mélanger les versions de travail et définitives', 'Ne conserver que les documents définitifs sans les travaux de revue'], answer: 0, explanation: 'Les documents sont classés du plus vieux au plus récent et le classement se fait dès la fin de la mission d’assistance, lorsque le travail est livré au client. Les travaux de revue et les travaux définitifs validés doivent être conservés.' }
+  ];
+  const questions7 = document.querySelector('#quiz-questions-7');
+  const progressLabel7 = document.querySelector('#quiz-progress-label-7');
+  const progressBar7 = document.querySelector('#quiz-progress-bar-7');
+  const message7 = document.querySelector('#quiz-form-message-7');
+  const submit7 = document.querySelector('#quiz-submit-7');
+  const result7 = document.querySelector('#quiz-result-7');
+  const resultScore7 = document.querySelector('#quiz-result-score-7');
+  const resultMessage7 = document.querySelector('#quiz-result-message-7');
+  const correctCount7 = document.querySelector('#quiz-correct-count-7');
+  const review7 = document.querySelector('#quiz-review-list-7');
+  const reset7 = document.querySelector('#quiz-reset-7');
+
+  function renderQuiz7() {
+    questions7.innerHTML = quizData7.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="question-7-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    questions7.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateQuiz7));
+    updateQuiz7();
+  }
+
+  function updateQuiz7() {
+    const answered = quizData7.filter((_, index) => quizForm7.querySelector(`input[name="question-7-${index}"]:checked`)).length;
+    progressLabel7.textContent = `${answered} / ${quizData7.length} répondues`;
+    progressBar7.style.width = `${answered / quizData7.length * 100}%`;
+  }
+
+  function showQuizResult7() {
+    const answers = quizData7.map((_, index) => quizForm7.querySelector(`input[name="question-7-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      message7.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      quizForm7.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    quizData7.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      quizForm7.querySelectorAll(`input[name="question-7-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    const score = correct * 2;
+    resultScore7.innerHTML = `${score}<span>/20</span>`;
+    correctCount7.textContent = `${correct} / ${quizData7.length} bonnes réponses`;
+    resultMessage7.textContent = score >= 16 ? 'Très bon résultat. Vous savez transformer une question en réponse fiscale structurée et traçable.' : score >= 10 ? 'Les bases sont acquises. Relisez les sources, le raisonnement, la revue et le classement.' : 'Reprenez la méthode : écouter, documenter, raisonner, rédiger, relire et classer.';
+    review7.innerHTML = quizData7.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    message7.textContent = 'Évaluation terminée. Consultez la correction commentée ci-dessous.';
+    message7.className = 'quiz-form-message success';
+    submit7.disabled = true;
+    result7.hidden = false;
+    result7.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  quizForm7.addEventListener('submit', (event) => { event.preventDefault(); showQuizResult7(); });
+  reset7.addEventListener('click', () => { quizForm7.reset(); quizForm7.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit7.disabled = false; result7.hidden = true; message7.textContent = ''; message7.className = 'quiz-form-message'; renderQuiz7(); quizForm7.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderQuiz7();
+}
