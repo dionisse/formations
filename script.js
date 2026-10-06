@@ -598,3 +598,216 @@ if (quizForm7) {
   reset7.addEventListener('click', () => { quizForm7.reset(); quizForm7.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); submit7.disabled = false; result7.hidden = true; message7.textContent = ''; message7.className = 'quiz-form-message'; renderQuiz7(); quizForm7.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   renderQuiz7();
 }
+
+/* Parcours guidé : une séquence visible à la fois et déverrouillage progressif. */
+(() => {
+  const guidedGroups = [
+    { number: 1, title: 'Installer le cadre du séminaire', sections: ['sequence-01', 'quiz-s1'], quizResult: 'quiz-result' },
+    { number: 2, title: 'Méthodologie des missions de revue fiscale', sections: ['sequence-02', 'quiz-s2'], quizResult: 'quiz-result-2' },
+    { number: 3, title: 'Construire les programmes de travail', sections: ['sequence-03', 'quiz-s3'], quizResult: 'quiz-result-3' },
+    { number: 4, title: 'Établir et revoir les déclarations fiscales', sections: ['sequence-04', 'quiz-s4'], quizResult: 'quiz-result-4' },
+    { number: 5, title: 'Traiter la paie avec méthode', sections: ['sequence-05', 'quiz-s5'], quizResult: 'quiz-result-5' },
+    { number: 6, title: 'Accompagner un contrôle fiscal', sections: ['sequence-06'] },
+    { number: 7, title: 'Formuler une consultation fiscale', sections: ['sequence-07', 'quiz-s7'], quizResult: 'quiz-result-7' }
+  ];
+  const banner = document.querySelector('#guided-banner');
+  if (!banner) return;
+  const status = document.querySelector('#guided-status');
+  const step = document.querySelector('#guided-step');
+  const stage = document.querySelector('#guided-stage');
+  const progress = document.querySelector('#guided-progress-bar');
+  const reset = document.querySelector('#guided-reset');
+  const guidedStorageKey = 'fiscale-guided-sequences-v1';
+  const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
+  const postCourseSections = [document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
+  let completed = new Set();
+  let currentNumber = 1;
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(guidedStorageKey) || '[]');
+    completed = new Set(stored.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length));
+  } catch (error) {
+    completed = new Set();
+  }
+
+  function saveProgress() {
+    try { localStorage.setItem(guidedStorageKey, JSON.stringify([...completed].sort((a, b) => a - b))); } catch (error) { /* stockage local indisponible */ }
+  }
+
+  function firstIncomplete() {
+    return guidedGroups.find((group) => !completed.has(group.number))?.number || guidedGroups.length;
+  }
+
+  function isUnlocked(number) {
+    return number <= firstIncomplete();
+  }
+
+  function getGroup(number) {
+    return guidedGroups.find((group) => group.number === Number(number));
+  }
+
+  function getGroupForElement(element) {
+    if (!element) return null;
+    const section = element.closest('section');
+    return guidedGroups.find((group) => group.sections.includes(element.id) || group.sections.includes(section?.id)) || null;
+  }
+
+  function quizIsComplete(group) {
+    if (!group.quizResult) return true;
+    const result = document.querySelector(`#${group.quizResult}`);
+    return Boolean(result && !result.hidden);
+  }
+
+  const completion = document.createElement('div');
+  completion.className = 'guided-completion';
+  completion.id = 'guided-completion';
+  completion.innerHTML = '<div><span class="guided-completion-label">Fin de séquence</span><h3 id="guided-completion-title"></h3><p id="guided-completion-note"></p></div><button class="button button-primary" id="guided-finish" type="button"></button>';
+  document.querySelector('#methode')?.before(completion);
+  const completionTitle = completion.querySelector('#guided-completion-title');
+  const completionNote = completion.querySelector('#guided-completion-note');
+  const finish = completion.querySelector('#guided-finish');
+
+  function updateCardStates() {
+    const next = firstIncomplete();
+    sequenceCards.forEach((card) => {
+      const number = Number(card.dataset.sequence);
+      const locked = number > next;
+      card.classList.toggle('locked', locked);
+      card.setAttribute('aria-current', number === currentNumber ? 'step' : 'false');
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', String(locked));
+    });
+    railSteps.forEach((railStep) => {
+      const number = Number(railStep.dataset.sequence);
+      railStep.classList.toggle('locked', number > next);
+      railStep.setAttribute('aria-disabled', String(number > next));
+    });
+  }
+
+  function updateBanner() {
+    const group = getGroup(currentNumber);
+    const complete = completed.size === guidedGroups.length;
+    step.textContent = `${String(currentNumber).padStart(2, '0')} / ${String(guidedGroups.length).padStart(2, '0')}`;
+    stage.textContent = complete ? 'Parcours terminé' : completed.has(currentNumber) ? 'Déjà validée' : 'En cours';
+    progress.style.width = `${complete ? 100 : Math.max(5, completed.size / guidedGroups.length * 100)}%`;
+    banner.classList.toggle('is-complete', complete);
+    if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante.`;
+  }
+
+  function updateCompletion() {
+    const group = getGroup(currentNumber);
+    const alreadyComplete = completed.has(currentNumber);
+    const quizRequired = Boolean(group.quizResult);
+    const quizComplete = quizIsComplete(group);
+    completionTitle.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} · ${group.title}`;
+    if (alreadyComplete) {
+      completionNote.textContent = currentNumber === guidedGroups.length ? 'Toutes les séquences sont validées. Les ressources et la méthode générale sont maintenant accessibles.' : 'Cette séquence est déjà validée. Vous pouvez la relire ou passer à la suivante.';
+      finish.disabled = false;
+      finish.textContent = currentNumber === guidedGroups.length ? 'Parcours terminé' : 'Passer à la séquence suivante →';
+    } else if (quizRequired && !quizComplete) {
+      completionNote.textContent = 'Pour terminer cette séquence, complétez et validez le QCM associé. La séquence suivante restera verrouillée jusque-là.';
+      finish.disabled = true;
+      finish.textContent = 'Valider le QCM pour continuer';
+    } else {
+      completionNote.textContent = quizRequired ? 'Le QCM est validé. Vous pouvez maintenant clôturer cette séquence.' : 'Après avoir parcouru cette séquence, confirmez sa clôture pour déverrouiller la suivante.';
+      finish.disabled = false;
+      finish.textContent = currentNumber === guidedGroups.length ? 'Terminer le parcours →' : 'Terminer la séquence et continuer →';
+    }
+  }
+
+  function updateVisibility() {
+    const group = getGroup(currentNumber);
+    allGuidedSections.forEach((section) => { section.hidden = !group.sections.includes(section.id); });
+    const courseComplete = completed.size === guidedGroups.length;
+    postCourseSections.forEach((section) => { section.hidden = !courseComplete; });
+    completion.hidden = false;
+    updateBanner();
+    updateCompletion();
+    updateCardStates();
+    activateSequence(String(currentNumber));
+    sequenceCards.forEach((card) => {
+      const isCurrent = Number(card.dataset.sequence) === currentNumber;
+      card.classList.toggle('open', isCurrent);
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(isCurrent));
+    });
+  }
+
+  function showLockedMessage(number) {
+    const group = getGroup(number);
+    status.textContent = `La séquence ${String(number).padStart(2, '0')} est verrouillée. Terminez d’abord la séquence ${String(firstIncomplete()).padStart(2, '0')} pour continuer.`;
+    banner.classList.add('is-warning');
+    window.setTimeout(() => banner.classList.remove('is-warning'), 1800);
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return group;
+  }
+
+  function showGroup(number, scroll = true) {
+    const targetNumber = Number(number);
+    if (!isUnlocked(targetNumber)) { showLockedMessage(targetNumber); return; }
+    currentNumber = targetNumber;
+    updateVisibility();
+    if (scroll) getGroup(currentNumber).sections.map((id) => document.querySelector(`#${id}`)).find(Boolean)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  finish.addEventListener('click', () => {
+    const group = getGroup(currentNumber);
+    if (!completed.has(currentNumber) && !quizIsComplete(group)) { updateCompletion(); return; }
+    completed.add(currentNumber);
+    saveProgress();
+    if (currentNumber < guidedGroups.length) showGroup(currentNumber + 1, true);
+    else updateVisibility();
+  });
+
+  reset.addEventListener('click', () => {
+    completed.clear();
+    saveProgress();
+    currentNumber = 1;
+    showGroup(1, false);
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href^="#"]');
+    if (!link) return;
+    const target = document.querySelector(link.getAttribute('href'));
+    const group = getGroupForElement(target);
+    if (!group) return;
+    if (!isUnlocked(group.number)) {
+      event.preventDefault();
+      showLockedMessage(group.number);
+      return;
+    }
+    event.preventDefault();
+    showGroup(group.number, false);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  railSteps.forEach((railStep) => {
+    railStep.addEventListener('click', (event) => {
+      const number = Number(railStep.dataset.sequence);
+      if (!isUnlocked(number)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showLockedMessage(number);
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showGroup(number, true);
+    }, true);
+  });
+
+  sequenceCards.forEach((card) => {
+    card.querySelector('.sequence-toggle')?.addEventListener('click', (event) => {
+      const number = Number(card.dataset.sequence);
+      if (!isUnlocked(number)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showLockedMessage(number);
+      }
+    }, true);
+  });
+
+  document.querySelectorAll('form[id^="sequence-quiz-"]').forEach((form) => form.addEventListener('submit', () => window.setTimeout(updateCompletion, 0)));
+  document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
+  showGroup(firstIncomplete(), false);
+})();
