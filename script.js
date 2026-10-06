@@ -618,10 +618,14 @@ if (quizForm7) {
   const progress = document.querySelector('#guided-progress-bar');
   const reset = document.querySelector('#guided-reset');
   const guidedStorageKey = 'fiscale-guided-sequences-v1';
+  const guidedCurrentStorageKey = 'fiscale-guided-current-v1';
+  let developerMode = new URLSearchParams(window.location.search).get('mode') === 'developer';
+  try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
   const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
-  const postCourseSections = [document.querySelector('#evaluation-finale'), document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
+  const postCourseSections = [document.querySelector('#evaluation-finale'), document.querySelector('#certificate-section'), document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
   let completed = new Set();
   let currentNumber = 1;
+  let storedCurrentNumber = 1;
 
   try {
     const stored = JSON.parse(localStorage.getItem(guidedStorageKey) || '[]');
@@ -630,8 +634,17 @@ if (quizForm7) {
     completed = new Set();
   }
 
+  try {
+    const storedCurrent = Number(localStorage.getItem(guidedCurrentStorageKey));
+    if (Number.isInteger(storedCurrent) && storedCurrent >= 1 && storedCurrent <= guidedGroups.length) storedCurrentNumber = storedCurrent;
+  } catch (error) { /* stockage local indisponible */ }
+
   function saveProgress() {
     try { localStorage.setItem(guidedStorageKey, JSON.stringify([...completed].sort((a, b) => a - b))); } catch (error) { /* stockage local indisponible */ }
+  }
+
+  function saveCurrent() {
+    try { localStorage.setItem(guidedCurrentStorageKey, String(currentNumber)); } catch (error) { /* stockage local indisponible */ }
   }
 
   function firstIncomplete() {
@@ -639,7 +652,7 @@ if (quizForm7) {
   }
 
   function isUnlocked(number) {
-    return number <= firstIncomplete();
+    return developerMode || number <= firstIncomplete();
   }
 
   function getGroup(number) {
@@ -668,7 +681,7 @@ if (quizForm7) {
   const finish = completion.querySelector('#guided-finish');
 
   function updateCardStates() {
-    const next = firstIncomplete();
+    const next = developerMode ? guidedGroups.length : firstIncomplete();
     sequenceCards.forEach((card) => {
       const number = Number(card.dataset.sequence);
       const previewOnly = number > next;
@@ -686,21 +699,26 @@ if (quizForm7) {
 
   function updateBanner() {
     const group = getGroup(currentNumber);
-    const complete = completed.size === guidedGroups.length;
-    step.textContent = `${String(currentNumber).padStart(2, '0')} / ${String(guidedGroups.length).padStart(2, '0')}`;
-    stage.textContent = complete ? 'Parcours terminé' : completed.has(currentNumber) ? 'Déjà validée' : 'En cours';
+    const complete = developerMode || completed.size === guidedGroups.length;
+    step.textContent = developerMode ? 'DEV' : `${String(currentNumber).padStart(2, '0')} / ${String(guidedGroups.length).padStart(2, '0')}`;
+    stage.textContent = developerMode ? 'Accès développeur' : complete ? 'Parcours terminé' : completed.has(currentNumber) ? 'Déjà validée' : 'En cours';
     progress.style.width = `${complete ? 100 : Math.max(5, completed.size / guidedGroups.length * 100)}%`;
     banner.classList.toggle('is-complete', complete);
-    if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante.`;
+    if (developerMode) status.textContent = 'Mode développeur actif : toutes les séquences, les contenus et les questionnaires sont consultables sans validation.';
+    else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante.`;
   }
 
   function updateCompletion() {
     const group = getGroup(currentNumber);
-    const alreadyComplete = completed.has(currentNumber);
+    const alreadyComplete = developerMode || completed.has(currentNumber);
     const quizRequired = Boolean(group.quizResult);
     const quizComplete = quizIsComplete(group);
     completionTitle.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} · ${group.title}`;
-    if (alreadyComplete) {
+    if (developerMode) {
+      completionNote.textContent = 'Mode développeur : les validations ne sont pas requises pour consulter ou tester les séquences.';
+      finish.disabled = true;
+      finish.textContent = 'Validation désactivée en mode développeur';
+    } else if (alreadyComplete) {
       completionNote.textContent = currentNumber === guidedGroups.length ? 'Toutes les séquences sont validées. Les ressources et la méthode générale sont maintenant accessibles.' : 'Cette séquence est déjà validée. Vous pouvez la relire ou passer à la suivante.';
       finish.disabled = false;
       finish.textContent = currentNumber === guidedGroups.length ? 'Parcours terminé' : 'Passer à la séquence suivante →';
@@ -717,10 +735,11 @@ if (quizForm7) {
 
   function updateVisibility() {
     const group = getGroup(currentNumber);
-    allGuidedSections.forEach((section) => { section.hidden = !group.sections.includes(section.id); });
-    const courseComplete = completed.size === guidedGroups.length;
+    if (developerMode) allGuidedSections.forEach((section) => { section.hidden = false; });
+    else allGuidedSections.forEach((section) => { section.hidden = !group.sections.includes(section.id); });
+    const courseComplete = developerMode || completed.size === guidedGroups.length;
     postCourseSections.forEach((section) => { section.hidden = !courseComplete; });
-    completion.hidden = false;
+    completion.hidden = developerMode;
     updateBanner();
     updateCompletion();
     updateCardStates();
@@ -745,6 +764,7 @@ if (quizForm7) {
     const targetNumber = Number(number);
     if (!isUnlocked(targetNumber)) { showLockedMessage(targetNumber); return; }
     currentNumber = targetNumber;
+    saveCurrent();
     updateVisibility();
     if (scroll) getGroup(currentNumber).sections.map((id) => document.querySelector(`#${id}`)).find(Boolean)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -762,6 +782,7 @@ if (quizForm7) {
     completed.clear();
     saveProgress();
     currentNumber = 1;
+    saveCurrent();
     showGroup(1, false);
     banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
@@ -819,7 +840,142 @@ if (quizForm7) {
 
   document.querySelectorAll('form[id^="sequence-quiz-"]').forEach((form) => form.addEventListener('submit', () => window.setTimeout(updateCompletion, 0)));
   document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
-  showGroup(firstIncomplete(), false);
+  const resumeNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
+  showGroup(resumeNumber, false);
+})();
+
+
+/* Certificat : collecte locale, aperçu filigrané et téléchargement après confirmation du règlement. */
+(() => {
+  const certificateSection = document.querySelector('#certificate-section');
+  const certificateOffer = document.querySelector('#certificate-offer');
+  const certificateStart = document.querySelector('#certificate-start');
+  const certificateFormPanel = document.querySelector('#certificate-form-panel');
+  const certificateForm = document.querySelector('#certificate-form');
+  const certificateMessage = document.querySelector('#certificate-form-message');
+  const certificatePreviewPanel = document.querySelector('#certificate-preview-panel');
+  const certificateEdit = document.querySelector('#certificate-edit');
+  const paymentButton = document.querySelector('#certificate-pay');
+  const paymentConfirm = document.querySelector('#certificate-payment-confirm');
+  const downloadButton = document.querySelector('#certificate-download');
+  if (!certificateSection || !certificateForm) return;
+
+  const profileStorageKey = 'fiscale-certificate-profile-v1';
+  const stateStorageKey = 'fiscale-certificate-state-v1';
+  const paymentUrl = 'https://goespay.io/pay/FJK9BGDH';
+  let profile = {};
+  let state = { accepted: false, previewReady: false, paymentConfirmed: false, reference: '' };
+
+  function readLocal(key, fallback) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || 'null');
+      return stored && typeof stored === 'object' ? stored : fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function saveLocal() {
+    try {
+      localStorage.setItem(profileStorageKey, JSON.stringify(profile));
+      localStorage.setItem(stateStorageKey, JSON.stringify(state));
+    } catch (error) { /* la génération reste utilisable si le stockage est indisponible */ }
+  }
+
+  function formatBirthDate(value) {
+    if (!value) return '—';
+    const date = new Date(`${value}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+  }
+
+  function setPreviewValue(id, value) {
+    const target = document.querySelector(`#${id}`);
+    if (target) target.textContent = value || '—';
+  }
+
+  function createReference() {
+    if (state.reference) return state.reference;
+    state.reference = `GOBEX-FORM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    return state.reference;
+  }
+
+  function renderPreview() {
+    setPreviewValue('certificate-participant-name', profile.participantName);
+    setPreviewValue('certificate-birth-date', formatBirthDate(profile.birthDate));
+    setPreviewValue('certificate-birth-place', profile.birthPlace);
+    setPreviewValue('certificate-nationality', profile.nationality);
+    setPreviewValue('certificate-profile', profile.profile);
+    setPreviewValue('certificate-reference', createReference());
+    paymentConfirm.checked = state.paymentConfirmed === true;
+    downloadButton.disabled = !paymentConfirm.checked;
+    certificatePreviewPanel.hidden = false;
+    certificateFormPanel.hidden = true;
+    saveLocal();
+  }
+
+  function openForm() {
+    state.accepted = true;
+    certificateOffer.hidden = true;
+    certificateFormPanel.hidden = false;
+    certificatePreviewPanel.hidden = true;
+    certificateMessage.textContent = '';
+    certificateForm.querySelector('#participant-name')?.focus();
+    saveLocal();
+  }
+
+  certificateStart.addEventListener('click', openForm);
+
+  certificateForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!certificateForm.checkValidity()) {
+      certificateMessage.textContent = 'Complétez les champs obligatoires pour générer l’aperçu.';
+      certificateForm.reportValidity();
+      return;
+    }
+    profile = Object.fromEntries(new FormData(certificateForm).entries());
+    state.accepted = true;
+    state.previewReady = true;
+    certificateMessage.textContent = '';
+    renderPreview();
+  });
+
+  certificateEdit.addEventListener('click', () => {
+    certificatePreviewPanel.hidden = true;
+    certificateFormPanel.hidden = false;
+    certificateForm.querySelector('#participant-name')?.focus();
+  });
+
+  paymentButton.addEventListener('click', () => {
+    window.open(paymentUrl, '_blank', 'noopener,noreferrer,width=520,height=720');
+  });
+
+  paymentConfirm.addEventListener('change', () => {
+    state.paymentConfirmed = paymentConfirm.checked;
+    downloadButton.disabled = !state.paymentConfirmed;
+    saveLocal();
+  });
+
+  downloadButton.addEventListener('click', () => {
+    if (!state.paymentConfirmed) return;
+    document.body.classList.add('printing-certificate');
+    const clearPrintMode = () => document.body.classList.remove('printing-certificate');
+    window.addEventListener('afterprint', clearPrintMode, { once: true });
+    window.print();
+    window.setTimeout(clearPrintMode, 1500);
+  });
+
+  profile = readLocal(profileStorageKey, {});
+  state = { ...state, ...readLocal(stateStorageKey, {}) };
+  if (profile.participantName) {
+    Object.entries(profile).forEach(([name, value]) => {
+      const field = certificateForm.elements.namedItem(name);
+      if (field) field.value = value;
+    });
+  }
+  if (state.accepted) certificateOffer.hidden = true;
+  if (state.previewReady && profile.participantName) renderPreview();
+  else if (state.accepted) certificateFormPanel.hidden = false;
 })();
 
 const finalQuizForm = document.querySelector('#final-quiz');

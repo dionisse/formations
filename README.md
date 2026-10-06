@@ -117,3 +117,19 @@ Le build Vite vérifie les pages et ressources de présentation. Pour tester le 
 - `private/dossier-data.json` — 24 rubriques et 7 sous-rubriques pédagogiques, servies uniquement via l'API protégée.
 - `storage/` — utilisateurs Google, index et contenu des fichiers de dossiers, créé automatiquement et ignoré par Git.
 - `scripts/` — scripts utilitaires conservés pour les opérations de maintenance.
+
+### Mode développeur du parcours pédagogique
+
+Pour consulter toutes les séquences et leurs questionnaires sans les valider, ouvrir la page avec le paramètre local suivant :
+
+```text
+http://localhost:4173/?mode=developer
+```
+
+Ce mode affiche explicitement « Accès développeur », désactive la clôture des séquences et n’écrit pas de validations supplémentaires dans `fiscale-guided-sequences-v1`. Le parcours normal reste séquentiel pour les autres visiteurs. Ce mécanisme côté navigateur est un outil de développement et ne constitue pas un contrôle d’accès de production.
+
+### Reprise du parcours et certificat
+
+La progression des séquences et la séquence en cours sont conservées dans le stockage local du navigateur (`fiscale-guided-sequences-v1` et `fiscale-guided-current-v1`). Les informations du participant, l’aperçu et l’état de confirmation du règlement utilisent des clés séparées (`fiscale-certificate-profile-v1` et `fiscale-certificate-state-v1`) afin de reprendre la demande sur le même appareil.
+
+Le bouton de règlement ouvre le prestataire dans une nouvelle fenêtre sans afficher son adresse dans l’interface. L’application ne prétend pas vérifier un paiement côté client : elle attend une confirmation manuelle dans le flux avant d’activer le bouton de téléchargement. Le bouton PDF ouvre la boîte d’impression du navigateur avec une feuille dédiée au certificat ; choisir « Enregistrer au format PDF ». Une intégration de retour serveur ou de webhook du prestataire sera nécessaire pour une validation financière automatisée en production.

@@ -346,6 +346,124 @@
 
     <section class="final-evaluation quiz-section section-pad" id="evaluation-finale"><div class="container"><div class="quiz-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> Évaluation finale · 7 séquences</div><h2>Validez votre <em>parcours.</em></h2><p>20 QCM transversaux pour vérifier votre maîtrise des sept séquences de formation. Chaque question vaut 1 point.</p></div><div class="quiz-score-badge"><strong>20</strong><span>questions<br />notées sur 20</span></div></div><form class="quiz-form" id="final-quiz" novalidate><div class="quiz-progress"><span id="final-quiz-progress-label">0 / 20 répondues</span><div class="quiz-progress-track"><i id="final-quiz-progress-bar"></i></div><span>1 point / question</span></div><div id="final-quiz-questions"></div><div class="quiz-form-footer"><p class="quiz-form-message" id="final-quiz-form-message" aria-live="polite"></p><button class="button button-primary" id="final-quiz-submit" type="submit">Valider l’évaluation finale <span>→</span></button></div></form><div class="quiz-result" id="final-quiz-result" hidden><div class="quiz-result-main"><span class="result-label">Votre résultat final</span><strong id="final-quiz-score">0<span>/20</span></strong><p id="final-quiz-message">Résultat en cours de calcul.</p><button class="button button-dark" id="final-quiz-reset" type="button">Recommencer l’évaluation <span>↻</span></button></div><div class="quiz-review"><div class="review-head"><strong>Correction commentée</strong><span id="final-quiz-correct-count">0 / 20 bonnes réponses</span></div><div id="final-quiz-review-list"></div></div></div><div class="quiz-next"><span>Fin du parcours</span><strong>Conservez votre résultat final et vos points de vigilance pour votre plan de progression.</strong><a class="text-link dark-link" href="#ressources">Voir les ressources <span>↓</span></a></div></div></section>
 
+    <section class="certificate-section section-pad" id="certificate-section" hidden>
+      <div class="container certificate-container">
+        <div class="section-heading centered-heading certificate-heading">
+          <div class="eyebrow"><span class="eyebrow-line"></span> Attestation de parcours <span class="eyebrow-line"></span></div>
+          <h2>Votre certificat de <em>participation.</em></h2>
+          <p>Après la validation des sept séquences, vous pouvez demander une attestation personnalisée. Vos informations sont conservées localement sur cet appareil pour vous permettre de reprendre la démarche.</p>
+        </div>
+
+        <div class="certificate-offer" id="certificate-offer">
+          <div class="certificate-offer-mark" aria-hidden="true"><span>G</span><i></i></div>
+          <div>
+            <span class="certificate-kicker">Parcours terminé · 7 séquences</span>
+            <h3>Souhaitez-vous générer votre certificat de participation&nbsp;?</h3>
+            <p>Le questionnaire demande uniquement les informations nécessaires à la personnalisation du document. Un aperçu marqué «&nbsp;BROUILLON&nbsp;» sera présenté avant tout règlement.</p>
+          </div>
+          <button class="button button-primary" id="certificate-start" type="button">Demander mon certificat <span>→</span></button>
+        </div>
+
+        <div class="certificate-form-panel" id="certificate-form-panel" hidden>
+          <div class="certificate-form-intro">
+            <span class="certificate-kicker">Étape 1 · Vos informations</span>
+            <h3>Préparons votre certificat</h3>
+            <p>Les champs marqués d’un astérisque sont obligatoires. Vérifiez l’orthographe avant de générer l’aperçu.</p>
+          </div>
+          <form id="certificate-form" class="certificate-form" novalidate>
+            <div class="certificate-field certificate-field-wide">
+              <label for="participant-name">Nom et prénoms <span>*</span></label>
+              <input id="participant-name" name="participantName" type="text" autocomplete="name" required placeholder="Ex. TOSSOU Dionisse Emiliano" />
+            </div>
+            <div class="certificate-field">
+              <label for="participant-birth-date">Date de naissance <span>*</span></label>
+              <input id="participant-birth-date" name="birthDate" type="date" autocomplete="bday" required />
+            </div>
+            <div class="certificate-field">
+              <label for="participant-birth-place">Lieu de naissance <span>*</span></label>
+              <input id="participant-birth-place" name="birthPlace" type="text" required placeholder="Ville, pays" />
+            </div>
+            <div class="certificate-field">
+              <label for="participant-nationality">Nationalité <span>*</span></label>
+              <input id="participant-nationality" name="nationality" type="text" autocomplete="country-name" required placeholder="Ex. Béninoise" />
+            </div>
+            <div class="certificate-field">
+              <label for="participant-profile">Profil <span>*</span></label>
+              <select id="participant-profile" name="profile" required>
+                <option value="">Sélectionner un profil</option>
+                <option>Étudiant</option>
+                <option>Chef d’entreprise</option>
+                <option>APE</option>
+                <option>Fiscaliste</option>
+                <option>Comptable</option>
+                <option>Indépendant</option>
+                <option>Gestionnaire</option>
+                <option>Financier</option>
+                <option>Banquier</option>
+                <option>Assureur</option>
+                <option>Commerçant</option>
+                <option>Autres</option>
+              </select>
+            </div>
+            <div class="certificate-form-actions">
+              <p class="certificate-form-message" id="certificate-form-message" aria-live="polite"></p>
+              <button class="button button-primary" type="submit">Générer l’aperçu <span>→</span></button>
+            </div>
+          </form>
+        </div>
+
+        <div class="certificate-preview-panel" id="certificate-preview-panel" hidden>
+          <div class="certificate-preview-intro">
+            <div>
+              <span class="certificate-kicker">Étape 2 · Aperçu personnalisé</span>
+              <h3>Relisez vos informations avant le règlement</h3>
+            </div>
+            <button class="button button-outline" id="certificate-edit" type="button">Modifier mes informations</button>
+          </div>
+          <div class="certificate-preview" id="certificate-preview">
+            <div class="certificate-watermark" aria-hidden="true">BROUILLON</div>
+            <div class="certificate-border certificate-border-one"></div>
+            <div class="certificate-border certificate-border-two"></div>
+            <header class="certificate-document-header">
+              <div class="certificate-brand" aria-label="GODWIN BUSINESS EXPERTISE GOBEX">
+                <div class="certificate-brand-mark" aria-hidden="true"><span>G</span><i></i></div>
+                <div><strong>GODWIN BUSINESS</strong><b>EXPERTISE</b><small>GOBEX</small></div>
+              </div>
+              <div class="certificate-document-contact"><strong>GOBEX</strong><span>Rue Maria Gleta Rond Point, Abomey-Calavi</span><span>RB/ABC/15A326, IFU : 1201502844807</span><span>Tel : +229 0190895323</span></div>
+            </header>
+            <div class="certificate-rule"></div>
+            <div class="certificate-document-body">
+              <p class="certificate-document-eyebrow">CERTIFICAT DE PARTICIPATION</p>
+              <h4>est décerné à</h4>
+              <p class="certificate-participant-name" id="certificate-participant-name">—</p>
+              <p class="certificate-document-copy">pour sa participation au parcours de formation professionnelle consacré à la méthodologie des missions fiscales, à la revue, au contrôle et à la consultation fiscale.</p>
+              <div class="certificate-participant-details">
+                <div><span>Date de naissance</span><strong id="certificate-birth-date">—</strong></div>
+                <div><span>Lieu de naissance</span><strong id="certificate-birth-place">—</strong></div>
+                <div><span>Nationalité</span><strong id="certificate-nationality">—</strong></div>
+                <div><span>Profil</span><strong id="certificate-profile">—</strong></div>
+              </div>
+            </div>
+            <footer class="certificate-document-footer">
+              <div><span>Référence</span><strong id="certificate-reference">GOBEX-FORM-—</strong></div>
+              <div class="certificate-signature"><span>Signature du responsable des formations</span><strong class="certificate-signature-script">Dionisse Emiliano TOSSOU</strong><i></i></div>
+              <div><span>Établissement</span><strong>GODWIN BUSINESS EXPERTISE</strong></div>
+            </footer>
+          </div>
+
+          <div class="certificate-payment" id="certificate-payment">
+            <div class="certificate-payment-copy"><span class="certificate-kicker">Étape 3 · Règlement</span><h3>Finalisez votre demande</h3><p>Ouvrez la page de règlement dans une nouvelle fenêtre. Le lien de paiement n’est pas affiché dans cette interface.</p></div>
+            <div class="certificate-payment-actions">
+              <button class="button button-primary" id="certificate-pay" type="button">Régler les frais du certificat <span>↗</span></button>
+              <label class="certificate-payment-confirm"><input id="certificate-payment-confirm" type="checkbox" /> <span>Je confirme avoir effectué le règlement.</span></label>
+              <p class="certificate-payment-note">Le téléchargement reste bloqué jusqu’à cette confirmation dans le flux. La vérification financière définitive relève du prestataire et du cabinet.</p>
+              <button class="button button-dark" id="certificate-download" type="button" disabled>Télécharger le certificat PDF <span>↓</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="method section-pad" id="methode">
       <div class="container method-grid">
         <div class="method-visual">
