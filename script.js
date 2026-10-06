@@ -619,7 +619,7 @@ if (quizForm7) {
   const reset = document.querySelector('#guided-reset');
   const guidedStorageKey = 'fiscale-guided-sequences-v1';
   const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
-  const postCourseSections = [document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
+  const postCourseSections = [document.querySelector('#evaluation-finale'), document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
   let completed = new Set();
   let currentNumber = 1;
 
@@ -754,7 +754,7 @@ if (quizForm7) {
     completed.add(currentNumber);
     saveProgress();
     if (currentNumber < guidedGroups.length) showGroup(currentNumber + 1, true);
-    else updateVisibility();
+    else { updateVisibility(); document.querySelector('#evaluation-finale')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
 
   reset.addEventListener('click', () => {
@@ -811,3 +811,87 @@ if (quizForm7) {
   document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
   showGroup(firstIncomplete(), false);
 })();
+
+const finalQuizForm = document.querySelector('#final-quiz');
+if (finalQuizForm) {
+  const finalQuizData = [
+    { question: 'Quel est l’objectif central d’une formation fiscale structurée ?', options: ['Partager un cadre de travail commun et produire des travaux contrôlables', 'Éviter toute supervision', 'Remplacer les textes fiscaux par des habitudes', 'Réduire les pièces conservées'], answer: 0, explanation: 'Le parcours vise un cadre commun, une méthode reproductible, une supervision et des preuves retrouvables.' },
+    { question: 'Quel réflexe appartient à la planification d’une mission ?', options: ['Choisir une période, définir un résultat attendu et réserver les temps de revue', 'Attendre la dernière échéance pour répartir les tâches', 'Supprimer les temps de contrôle', 'Travailler sans responsable identifié'], answer: 0, explanation: 'La planification relie période, résultat, priorités, ressources, échéances et temps de supervision.' },
+    { question: 'Quel document permet de démontrer les travaux réalisés et la conclusion retenue ?', options: ['Une feuille de travail référencée avec ses pièces et sa conclusion', 'Un message oral non documenté', 'Une copie sans période ni client', 'Une liste de tâches sans statut'], answer: 0, explanation: 'Une feuille de travail doit permettre de comprendre les travaux, les pièces examinées, les anomalies et la conclusion.' },
+    { question: 'Quelle distinction est essentielle dans un dossier fiscal ?', options: ['Dossier permanent et dossier de l’exercice', 'Documents importants et documents sans date', 'Pièces papier et pièces sans référence', 'Fichiers internes et fichiers sans responsable'], answer: 0, explanation: 'Le dossier permanent contient les informations durables à mettre à jour ; le dossier courant documente la mission et la période.' },
+    { question: 'Dans une répartition des travaux, que signifie une revue indépendante ?', options: ['Une autre personne contrôle les travaux, les preuves et la conclusion', 'Le préparateur valide seul son propre travail', 'Le client supprime les anomalies', 'La revue intervient seulement après archivage'], answer: 0, explanation: 'La revue indépendante apporte un second regard et permet d’apurer les observations avant validation finale.' },
+    { question: 'Quel est le rôle d’un référencement stable dans un dossier ?', options: ['Relier chaque document à sa rubrique, sa période, sa nature et sa version', 'Donner un nom différent à chaque ouverture', 'Remplacer la conservation des preuves', 'Éviter toute version définitive'], answer: 0, explanation: 'Un code stable rend les pièces retrouvables et relie le document à la feuille de travail et à la conclusion.' },
+    { question: 'Avant d’établir la TVA, quelle base faut-il réunir et rapprocher ?', options: ['Pièces comptables, balance générale et grands-livres', 'Uniquement une estimation du chiffre d’affaires', 'Seulement la dernière quittance', 'Le fichier des congés'], answer: 0, explanation: 'La TVA se prépare à partir des pièces, de la balance et des grands-livres, avec un rapprochement des informations.' },
+    { question: 'Quelle règle concerne la TVA pour compte de tiers ?', options: ['Elle doit être rapprochée et ne doit pas être compensée avec la TVA due par la société', 'Elle est toujours compensée avec la TVA de la société', 'Elle ne nécessite aucune preuve de paiement', 'Elle est due uniquement à la clôture annuelle'], answer: 0, explanation: 'Le montant payé, déclaré et déduit doit être relié aux pièces et à la preuve de reversement, sans compensation avec la TVA de la société.' },
+    { question: 'Pour un fournisseur étranger soumis à une retenue AIB, quel point doit être vérifié ?', options: ['La convention fiscale applicable et les justificatifs requis', 'Uniquement le nom du fournisseur', 'La couleur de la facture', 'Le nombre de pages du contrat'], answer: 0, explanation: 'Les conventions fiscales peuvent influencer l’analyse ; leur application doit être vérifiée et documentée.' },
+    { question: 'Quelle information doit être obtenue au plus tard le 10 mars pour la TVM ?', options: ['Le fichier des immobilisations mis à jour', 'La liste des fournisseurs non payés', 'Les fiches employés', 'Le registre des consultations'], answer: 0, explanation: 'Le fichier des immobilisations permet d’identifier et de classer les véhicules concernés par la TVM.' },
+    { question: 'Quelle est la date limite mentionnée pour obtenir les fiches employés ?', options: ['Le 5', 'Le 10', 'Le 25', 'Le dernier jour de l’exercice'], answer: 2, explanation: 'La méthodologie de paie prévoit l’obtention obligatoire des fiches employés au plus tard le 25 de chaque mois.' },
+    { question: 'Avec qui faut-il communiquer pour obtenir et transmettre les documents de paie ?', options: ['Le collaborateur du client responsable des ressources humaines', 'Tous les collaborateurs du client', 'Une personne extérieure non habilitée', 'Un fournisseur'], answer: 0, explanation: 'Les échanges doivent être centralisés avec le responsable RH désigné afin de protéger la confidentialité des données.' },
+    { question: 'Que faut-il faire avant de transmettre les fiches employés à la saisie ?', options: ['Calculer les différents éléments de rémunération', 'Supprimer les avantages en nature', 'Envoyer les fiches sans contrôle', 'Classer le dossier définitif'], answer: 0, explanation: 'Les éléments de rémunération doivent être calculés et documentés avant la saisie.' },
+    { question: 'À la réception d’un avis de vérification, quelle est la première démarche ?', options: ['Vérifier la procédure et préparer la réunion et les pièces avec le client', 'Répondre immédiatement sans lire l’avis', 'Contacter tous les salariés', 'Détruire les anciennes pièces'], answer: 0, explanation: 'Il faut examiner la procédure, réunir le client, obtenir les pièces et préparer les dispositions matérielles.' },
+    { question: 'Quel délai du support doit être vérifié pour répondre à une notification de redressement ?', options: ['10 jours', '15 jours', '30 jours', '90 jours'], answer: 2, explanation: 'Le support mentionne un délai de 30 jours. Ce délai doit être confirmé dans les textes et selon la procédure applicable au dossier.' },
+    { question: 'Comment traiter la caution et le recours en matière de contentieux fiscal ?', options: ['Vérifier le repère de 25 %, les conditions du sursis et conseiller un avocat si la procédure le requiert', 'Appliquer automatiquement 25 % sans vérifier le texte', 'Saisir le juge sans analyser les délais', 'Ne conserver aucune preuve de versement'], answer: 0, explanation: 'Le repère de 25 % est conservé avec une réserve de vérification. Les règles de procédure et la compétence de l’avocat doivent être respectées.' },
+    { question: 'Qu’est-ce qu’une consultation fiscale ?', options: ['Une réponse verbale ou écrite à une question posée par le client', 'Une décision automatique de l’administration', 'Un classement de déclarations', 'Une opinion sans faits ni sources'], answer: 0, explanation: 'La consultation répond à une question du client ; la consultation verbale doit rester l’exception et être confirmée par écrit.' },
+    { question: 'Quelle combinaison constitue des sources du droit à examiner ?', options: ['Conventions, CGI, règlements, jurisprudence et doctrine', 'Uniquement l’expérience personnelle', 'Seulement les habitudes du client', 'Une ancienne réponse non vérifiée'], answer: 0, explanation: 'Les sources comprennent notamment les traités et conventions, la loi, les textes réglementaires, la jurisprudence et la doctrine.' },
+    { question: 'Quel enchaînement correspond à une consultation bien construite ?', options: ['Rappeler la question, analyser, présenter les solutions éventuelles et conclure', 'Affirmer une conclusion avant de vérifier les faits', 'Copier un texte sans l’appliquer', 'Rédiger uniquement une liste de sources'], answer: 0, explanation: 'Une consultation suit une démarche intelligible : question et environnement, plan, analyse, solutions éventuelles et conclusion.' },
+    { question: 'Quelle règle s’applique au classement des dossiers d’assistance fiscale ?', options: ['Classer du plus vieux au plus récent dès que le travail est livré au client', 'Attendre systématiquement la fin de l’année', 'Mélanger travaux de revue et versions définitives', 'Conserver seulement les pièces les plus récentes'], answer: 0, explanation: 'Le classement commence dès la livraison au client, du plus vieux au plus récent, en conservant les travaux de revue et les documents définitifs validés.' }
+  ];
+  const finalQuestions = document.querySelector('#final-quiz-questions');
+  const finalProgressLabel = document.querySelector('#final-quiz-progress-label');
+  const finalProgressBar = document.querySelector('#final-quiz-progress-bar');
+  const finalMessage = document.querySelector('#final-quiz-form-message');
+  const finalSubmit = document.querySelector('#final-quiz-submit');
+  const finalResult = document.querySelector('#final-quiz-result');
+  const finalScore = document.querySelector('#final-quiz-score');
+  const finalResultMessage = document.querySelector('#final-quiz-message');
+  const finalCorrectCount = document.querySelector('#final-quiz-correct-count');
+  const finalReview = document.querySelector('#final-quiz-review-list');
+  const finalReset = document.querySelector('#final-quiz-reset');
+
+  function renderFinalQuiz() {
+    finalQuestions.innerHTML = finalQuizData.map((item, questionIndex) => `<fieldset class="quiz-question"><legend class="quiz-question-header"><span class="quiz-question-number">${String(questionIndex + 1).padStart(2, '0')}</span><span class="quiz-question-text">${item.question}</span></legend><div class="quiz-options">${item.options.map((option, optionIndex) => `<label class="quiz-option"><input type="radio" name="final-question-${questionIndex}" value="${optionIndex}" /><span>${String.fromCharCode(65 + optionIndex)}. ${option}</span></label>`).join('')}</div></fieldset>`).join('');
+    finalQuestions.querySelectorAll('input').forEach((input) => input.addEventListener('change', updateFinalQuiz));
+    updateFinalQuiz();
+  }
+
+  function updateFinalQuiz() {
+    const answered = finalQuizData.filter((_, index) => finalQuizForm.querySelector(`input[name="final-question-${index}"]:checked`)).length;
+    finalProgressLabel.textContent = `${answered} / ${finalQuizData.length} répondues`;
+    finalProgressBar.style.width = `${answered / finalQuizData.length * 100}%`;
+  }
+
+  function showFinalResult() {
+    const answers = finalQuizData.map((_, index) => finalQuizForm.querySelector(`input[name="final-question-${index}"]:checked`));
+    const unanswered = answers.filter((answer) => !answer).length;
+    if (unanswered) {
+      finalMessage.textContent = `Il reste ${unanswered} question${unanswered > 1 ? 's' : ''} à compléter avant de valider.`;
+      const firstMissing = answers.findIndex((answer) => !answer);
+      finalQuizForm.querySelectorAll('.quiz-question')[firstMissing]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    let correct = 0;
+    finalQuizData.forEach((item, index) => {
+      const selected = Number(answers[index].value);
+      finalQuizForm.querySelectorAll(`input[name="final-question-${index}"]`).forEach((input) => {
+        input.disabled = true;
+        const label = input.closest('.quiz-option');
+        if (Number(input.value) === item.answer) label.classList.add('is-correct');
+        if (Number(input.value) === selected && selected !== item.answer) label.classList.add('is-wrong');
+      });
+      if (selected === item.answer) correct += 1;
+    });
+    finalScore.innerHTML = `${correct}<span>/20</span>`;
+    finalCorrectCount.textContent = `${correct} / ${finalQuizData.length} bonnes réponses`;
+    finalResultMessage.textContent = correct >= 16 ? 'Très bon résultat. Votre parcours est solidement maîtrisé.' : correct >= 10 ? 'Parcours validé. Reprenez les corrections commentées pour consolider vos points de vigilance.' : 'Relisez les séquences et les corrections commentées avant de recommencer l’évaluation.';
+    finalReview.innerHTML = finalQuizData.map((item, index) => { const selected = Number(answers[index].value); const isCorrect = selected === item.answer; return `<div class="review-item ${isCorrect ? 'correct' : 'incorrect'}"><span>${isCorrect ? '✓' : '!'}</span><div><strong>${String(index + 1).padStart(2, '0')}. ${isCorrect ? 'Bonne réponse' : `Réponse attendue : ${String.fromCharCode(65 + item.answer)}`}</strong><p>${item.explanation}</p></div></div>`; }).join('');
+    finalMessage.textContent = 'Évaluation finale terminée. Consultez la correction commentée ci-dessous.';
+    finalMessage.className = 'quiz-form-message success';
+    finalSubmit.disabled = true;
+    finalResult.hidden = false;
+    finalResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  finalQuizForm.addEventListener('submit', (event) => { event.preventDefault(); showFinalResult(); });
+  finalReset.addEventListener('click', () => { finalQuizForm.reset(); finalQuizForm.querySelectorAll('input').forEach((input) => { input.disabled = false; input.closest('.quiz-option').classList.remove('is-correct', 'is-wrong'); }); finalSubmit.disabled = false; finalResult.hidden = true; finalMessage.textContent = ''; finalMessage.className = 'quiz-form-message'; renderFinalQuiz(); finalQuizForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderFinalQuiz();
+}
