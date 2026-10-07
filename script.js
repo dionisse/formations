@@ -80,14 +80,16 @@ railSteps.forEach((step) => {
 
 const observedSections = [...document.querySelectorAll('main section[id]')];
 const navLinks = [...document.querySelectorAll('.main-nav a')];
-const sectionObserver = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    if (entry.isIntersecting) {
-      navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
-    }
-  });
-}, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
-observedSections.forEach((section) => sectionObserver.observe(section));
+if ('IntersectionObserver' in window) {
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
+      }
+    });
+  }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
+  observedSections.forEach((section) => sectionObserver.observe(section));
+}
 
 window.addEventListener('scroll', () => {
   backToTop?.classList.toggle('visible', window.scrollY > 500);
@@ -842,6 +844,12 @@ if (quizForm7) {
       event.stopImmediatePropagation();
       const number = Number(card.dataset.sequence);
       const willOpen = !card.classList.contains('open');
+      if (willOpen && !isUnlocked(number)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showLockedMessage(number);
+        return;
+      }
       sequenceCards.forEach((other) => {
         other.classList.remove('open');
         other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
@@ -849,9 +857,6 @@ if (quizForm7) {
       if (willOpen) {
         card.classList.add('open');
         card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'true');
-        if (!isUnlocked(number)) {
-          status.textContent = `Aperçu de la séquence ${String(number).padStart(2, '0')} : vous pouvez voir son contenu et son livrable. Le passage complet sera déverrouillé après validation de la séquence ${String(firstIncomplete()).padStart(2, '0')}.`;
-        }
       }
     }, true);
   });
