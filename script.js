@@ -886,6 +886,7 @@ if (quizForm7) {
   });
 
   reset.addEventListener('click', () => {
+    saveQuizDrafts({});
     completed.clear();
     saveProgress();
     currentNumber = 1;
