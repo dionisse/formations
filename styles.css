@@ -227,3 +227,8 @@ img{ -webkit-user-drag:none; user-drag:none }
 @media(max-width:820px){
   .sequence-card.open .sequence-details{max-height:none!important;overflow:visible!important;opacity:1!important}
 }
+
+/* Desktop : garder tout le résumé « Vous apprendrez » visible dans l'aperçu verrouillé. */
+@media(min-width:821px){
+  .sequence-card.preview-only .sequence-details{display:grid!important;max-height:none!important;overflow:visible!important;opacity:1!important}
+}
