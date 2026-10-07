@@ -59,7 +59,7 @@ sequenceCards.forEach((card) => {
     if (willOpen) {
       card.classList.add('open');
       toggle.setAttribute('aria-expanded', 'true');
-      activateSequence(card.dataset.sequence);
+      activateSequence(card.dataset.sequenceCard);
     }
   });
 });
@@ -707,7 +707,7 @@ if (quizForm7) {
   function updateCardStates() {
     const next = developerMode ? guidedGroups.length : firstIncomplete();
     sequenceCards.forEach((card) => {
-      const number = Number(card.dataset.sequence);
+      const number = Number(card.dataset.sequenceCard);
       const previewOnly = !developerMode && number > next;
       card.classList.toggle('preview-only', previewOnly);
       card.classList.toggle('locked', previewOnly);
@@ -769,7 +769,7 @@ if (quizForm7) {
     updateCardStates();
     activateSequence(String(currentNumber));
     sequenceCards.forEach((card) => {
-      const isCurrent = Number(card.dataset.sequence) === currentNumber;
+      const isCurrent = Number(card.dataset.sequenceCard) === currentNumber;
       card.classList.toggle('open', isCurrent);
       card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(isCurrent));
     });
@@ -846,7 +846,7 @@ if (quizForm7) {
     card.querySelector('.sequence-toggle')?.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      const number = Number(card.dataset.sequence);
+      const number = Number(card.dataset.sequenceCard);
       const willOpen = !card.classList.contains('open');
       if (willOpen && !isUnlocked(number)) {
         event.preventDefault();
