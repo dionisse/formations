@@ -222,3 +222,8 @@ img{ -webkit-user-drag:none; user-drag:none }
 
 /* Respecter systématiquement l'attribut HTML hidden, notamment pour les résultats des QCM et le bouton du cas suivant. */
 [hidden]{display:none!important}
+
+/* Ne pas tronquer les résumés de la carte active sur mobile. */
+@media(max-width:820px){
+  .sequence-card.open .sequence-details{max-height:none!important;overflow:visible!important;opacity:1!important}
+}
