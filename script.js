@@ -710,9 +710,9 @@ if (quizForm7) {
       const number = Number(card.dataset.sequenceCard);
       const previewOnly = !developerMode && number > next;
       card.classList.toggle('preview-only', previewOnly);
-      card.classList.toggle('locked', previewOnly);
+      card.classList.remove('locked');
       card.setAttribute('aria-current', number === currentNumber ? 'step' : 'false');
-      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', String(previewOnly));
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', 'false');
     });
     railSteps.forEach((railStep) => {
       const number = Number(railStep.dataset.sequence);
@@ -847,21 +847,20 @@ if (quizForm7) {
       event.preventDefault();
       event.stopImmediatePropagation();
       const number = Number(card.dataset.sequenceCard);
+      const isPreview = !isUnlocked(number);
       const willOpen = !card.classList.contains('open');
-      if (willOpen && !isUnlocked(number)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showLockedMessage(number);
+      if (isPreview) {
+        card.classList.toggle('open', willOpen);
+        card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(willOpen));
+        status.textContent = willOpen ? `Aperçu de la séquence ${String(number).padStart(2, '0')} ouvert. Le contenu complet sera disponible après validation de la séquence ${String(firstIncomplete()).padStart(2, '0')}.` : `Aperçu de la séquence ${String(number).padStart(2, '0')} refermé.`;
         return;
       }
       sequenceCards.forEach((other) => {
         other.classList.remove('open');
         other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
       });
-      if (willOpen) {
-        card.classList.add('open');
-        card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'true');
-      }
+      card.classList.toggle('open', willOpen);
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(willOpen));
     }, true);
   });
 

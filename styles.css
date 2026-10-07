@@ -232,3 +232,8 @@ img{ -webkit-user-drag:none; user-drag:none }
 @media(min-width:821px){
   .sequence-card.preview-only .sequence-details{display:grid!important;max-height:none!important;overflow:visible!important;opacity:1!important}
 }
+
+/* Les cartes d'aperçu restent repliables dans le parcours normal sans déverrouiller la séquence. */
+.sequence-card.open .sequence-details{max-height:2000px!important;overflow:visible!important;opacity:1!important}
+.sequence-card.preview-only .sequence-details{max-height:0!important;overflow:hidden!important;opacity:0!important}
+.sequence-card.preview-only.open .sequence-details{max-height:2000px!important;overflow:visible!important;opacity:1!important}
