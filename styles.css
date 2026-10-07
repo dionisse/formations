@@ -201,3 +201,24 @@ img{ -webkit-user-drag:none; user-drag:none }
   .toolkit-grid strong,.toolkit-grid small,.file-obligations strong,.file-obligations small,.allocation-summary strong,.allocation-summary small{overflow-wrap:anywhere;word-break:break-word}
   .quiz-section:not([hidden]) .quiz-form,.quiz-section:not([hidden]) #quiz-questions,.quiz-section:not([hidden]) [id^="quiz-questions-"]{min-width:0;width:100%}
 }
+
+/* Corrections finales pour la largeur du téléphone : une seule colonne par cheminement. */
+@media(max-width:820px){
+  .review-cycle-steps,
+  .program-anatomy-flow,
+  .allocation-rhythm,
+  .declaration-workflow{display:flex!important;flex-direction:column!important;grid-template-columns:none!important;align-items:stretch!important;width:100%;}
+  .review-cycle-steps>i,
+  .program-anatomy-flow>i,
+  .allocation-rhythm>i,
+  .declaration-workflow>i{width:100%;grid-column:auto!important;}
+  .toolkit-grid{display:grid!important;grid-template-columns:1fr!important;}
+  .resource-grid{grid-template-columns:1fr!important;}
+  .resource-card{display:flex;flex-direction:column;min-height:0;padding:25px 22px 74px;}
+  .resource-card p{max-width:none;margin-bottom:0;}
+  .resource-card .card-link{left:22px;right:22px;bottom:22px;width:auto;line-height:1.35;white-space:normal;}
+  .sequence-card.preview-only .sequence-details{display:block!important;max-height:520px!important;overflow:visible!important;opacity:1!important;}
+}
+
+/* Respecter systématiquement l'attribut HTML hidden, notamment pour les résultats des QCM et le bouton du cas suivant. */
+[hidden]{display:none!important}

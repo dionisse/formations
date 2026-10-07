@@ -81,14 +81,18 @@ railSteps.forEach((step) => {
 const observedSections = [...document.querySelectorAll('main section[id]')];
 const navLinks = [...document.querySelectorAll('.main-nav a')];
 if (typeof window.IntersectionObserver === 'function') {
-  const sectionObserver = new window.IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
-      }
-    });
-  }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
-  observedSections.forEach((section) => sectionObserver.observe(section));
+  try {
+    const sectionObserver = new window.IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
+        }
+      });
+    }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
+    observedSections.forEach((section) => sectionObserver.observe(section));
+  } catch (error) {
+    /* Un navigateur mobile peut exposer l’API sans pouvoir l’instancier. */
+  }
 }
 
 window.addEventListener('scroll', () => {
@@ -706,9 +710,9 @@ if (quizForm7) {
       const number = Number(card.dataset.sequence);
       const previewOnly = !developerMode && number > next;
       card.classList.toggle('preview-only', previewOnly);
-      card.classList.remove('locked');
+      card.classList.toggle('locked', previewOnly);
       card.setAttribute('aria-current', number === currentNumber ? 'step' : 'false');
-      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', 'false');
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-disabled', String(previewOnly));
     });
     railSteps.forEach((railStep) => {
       const number = Number(railStep.dataset.sequence);
@@ -862,7 +866,9 @@ if (quizForm7) {
   });
 
   document.querySelectorAll('form[id^="sequence-quiz-"]').forEach((form) => form.addEventListener('submit', () => window.setTimeout(updateCompletion, 0)));
-  document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
+  if (typeof window.MutationObserver === 'function') {
+    document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new window.MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
+  }
   const resumeNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
   showGroup(resumeNumber, false);
 })();
@@ -1232,12 +1238,16 @@ if (finalQuizForm) {
     revealNodes.forEach((node) => node.classList.add('is-visible'));
     return;
   }
-  const observer = new IntersectionObserver((entries, instance) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add('is-visible');
-      instance.unobserve(entry.target);
-    });
-  }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
-  revealNodes.forEach((node) => observer.observe(node));
+  try {
+    const observer = new window.IntersectionObserver((entries, instance) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        instance.unobserve(entry.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+    revealNodes.forEach((node) => observer.observe(node));
+  } catch (error) {
+    revealNodes.forEach((node) => node.classList.add('is-visible'));
+  }
 })();
