@@ -16,7 +16,12 @@
   document.querySelectorAll('img').forEach((image) => { image.draggable = false; });
 })();
 
-const isMobileCourseViewport = () => window.innerWidth <= 820 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 820px)').matches);
+const isMobileCourseViewport = () => {
+  const narrowViewport = window.innerWidth <= 820 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 820px)').matches);
+  const touchDevice = Number(navigator.maxTouchPoints || 0) > 0 || (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches);
+  const phoneLandscape = touchDevice && Math.max(window.innerWidth, window.innerHeight) <= 1200 && Math.min(window.innerWidth, window.innerHeight) <= 700;
+  return narrowViewport || phoneLandscape;
+};
 
 const menuToggle = document.querySelector('.menu-toggle');
 const mainNav = document.querySelector('.main-nav');
