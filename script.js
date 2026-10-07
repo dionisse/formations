@@ -80,8 +80,8 @@ railSteps.forEach((step) => {
 
 const observedSections = [...document.querySelectorAll('main section[id]')];
 const navLinks = [...document.querySelectorAll('.main-nav a')];
-if ('IntersectionObserver' in window) {
-  const sectionObserver = new IntersectionObserver((entries) => {
+if (typeof window.IntersectionObserver === 'function') {
+  const sectionObserver = new window.IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
         navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
@@ -1228,7 +1228,7 @@ if (finalQuizForm) {
   const rail = document.querySelector('.program-rail');
   rail?.classList.add('timeline-ready');
   rail?.querySelectorAll('.rail-step').forEach((step, index) => step.style.setProperty('--timeline-delay', `${index * 90}ms`));
-  if (!('IntersectionObserver' in window)) {
+  if (typeof window.IntersectionObserver !== 'function') {
     revealNodes.forEach((node) => node.classList.add('is-visible'));
     return;
   }

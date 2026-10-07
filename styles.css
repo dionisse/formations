@@ -187,3 +187,17 @@ img{ -webkit-user-drag:none; user-drag:none }
   .file-obligations,.allocation-summary{grid-template-columns:1fr}
   .program-quality{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 }
+
+/* Sécurisation finale des empilements sur les écrans Android étroits. */
+@media(max-width:820px){
+  html,body{max-width:100%;overflow-x:hidden}
+  main,.container,.section-pad,.quiz-section,.role-workshop,.scenario-panel{min-width:0}
+  .review-cycle-steps>*
+  ,.program-anatomy-flow>*
+  ,.allocation-rhythm>*
+  ,.declaration-workflow>*{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+  .review-cycle-step small,.program-anatomy-flow small,.allocation-rhythm small,.declaration-workflow small{overflow-wrap:anywhere;word-break:break-word}
+  .toolkit-grid,.toolkit-grid>div,.file-obligations>div,.allocation-summary>div{min-width:0}
+  .toolkit-grid strong,.toolkit-grid small,.file-obligations strong,.file-obligations small,.allocation-summary strong,.allocation-summary small{overflow-wrap:anywhere;word-break:break-word}
+  .quiz-section:not([hidden]) .quiz-form,.quiz-section:not([hidden]) #quiz-questions,.quiz-section:not([hidden]) [id^="quiz-questions-"]{min-width:0;width:100%}
+}
