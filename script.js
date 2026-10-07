@@ -643,6 +643,8 @@ if (quizForm7) {
   const reset = document.querySelector('#guided-reset');
   const guidedStorageKey = 'fiscale-guided-sequences-v1';
   const guidedCurrentStorageKey = 'fiscale-guided-current-v1';
+  const guidedProgressStorageKey = 'fiscale-guided-progress-v2';
+  const guidedCookieMaxAge = 60 * 60 * 24 * 365;
   let developerMode = new URLSearchParams(window.location.search).get('mode') === 'developer';
   try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
   const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
@@ -650,26 +652,107 @@ if (quizForm7) {
   let completed = new Set();
   let currentNumber = 1;
   let storedCurrentNumber = 1;
+  let storedScrollY = 0;
 
-  try {
-    const stored = JSON.parse(localStorage.getItem(guidedStorageKey) || '[]');
-    completed = new Set(stored.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length));
-  } catch (error) {
-    completed = new Set();
+  function readCookie(key) {
+    const encodedKey = encodeURIComponent(key);
+    const entry = document.cookie.split('; ').find((part) => part.startsWith(`${encodedKey}=`));
+    if (!entry) return null;
+    try { return decodeURIComponent(entry.slice(encodedKey.length + 1)); } catch (error) { return null; }
   }
 
-  try {
-    const storedCurrent = Number(localStorage.getItem(guidedCurrentStorageKey));
+  function readPersistent(key) {
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored !== null) return stored;
+    } catch (error) { /* stockage local indisponible */ }
+    return readCookie(key);
+  }
+
+  function writePersistent(key, value) {
+    try { localStorage.setItem(key, value); } catch (error) { /* cookie de secours ci-dessous */ }
+    try {
+      document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Max-Age=${guidedCookieMaxAge}; Path=/; SameSite=Lax`;
+    } catch (error) { /* cookies indisponibles */ }
+  }
+
+  let storedProgress = null;
+  try { storedProgress = JSON.parse(readPersistent(guidedProgressStorageKey) || 'null'); } catch (error) { storedProgress = null; }
+  if (storedProgress && Array.isArray(storedProgress.completed)) {
+    completed = new Set(storedProgress.completed.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length));
+    storedCurrentNumber = Number(storedProgress.current) || 1;
+    storedScrollY = Number(storedProgress.scrollY) || 0;
+  } else {
+    try {
+      const stored = JSON.parse(readPersistent(guidedStorageKey) || '[]');
+      completed = new Set(stored.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length));
+    } catch (error) {
+      completed = new Set();
+    }
+    const storedCurrent = Number(readPersistent(guidedCurrentStorageKey));
     if (Number.isInteger(storedCurrent) && storedCurrent >= 1 && storedCurrent <= guidedGroups.length) storedCurrentNumber = storedCurrent;
-  } catch (error) { /* stockage local indisponible */ }
-
-  function saveProgress() {
-    try { localStorage.setItem(guidedStorageKey, JSON.stringify([...completed].sort((a, b) => a - b))); } catch (error) { /* stockage local indisponible */ }
   }
 
-  function saveCurrent() {
-    try { localStorage.setItem(guidedCurrentStorageKey, String(currentNumber)); } catch (error) { /* stockage local indisponible */ }
+  function saveProgressState() {
+    const state = JSON.stringify({ completed: [...completed].sort((a, b) => a - b), current: currentNumber, scrollY: Math.max(0, Math.round(window.scrollY || 0)), updatedAt: new Date().toISOString() });
+    writePersistent(guidedProgressStorageKey, state);
+    writePersistent(guidedStorageKey, JSON.stringify([...completed].sort((a, b) => a - b)));
+    writePersistent(guidedCurrentStorageKey, String(currentNumber));
   }
+
+  function saveProgress() { saveProgressState(); }
+  function saveCurrent() { saveProgressState(); }
+
+  const quizDraftStorageKey = 'fiscale-quiz-drafts-v1';
+  function readQuizDrafts() {
+    try {
+      const drafts = JSON.parse(readPersistent(quizDraftStorageKey) || '{}');
+      return drafts && typeof drafts === 'object' ? drafts : {};
+    } catch (error) {
+      return {};
+    }
+  }
+  function saveQuizDrafts(drafts) { writePersistent(quizDraftStorageKey, JSON.stringify(drafts)); }
+  function saveQuizDraft(form) {
+    if (!form?.id) return;
+    const drafts = readQuizDrafts();
+    drafts[form.id] = Object.fromEntries([...form.querySelectorAll('input[type="radio"]:checked')].map((input) => [input.name, input.value]));
+    saveQuizDrafts(drafts);
+  }
+  function restoreQuizDrafts() {
+    const drafts = readQuizDrafts();
+    document.querySelectorAll('form[id^="sequence-quiz"], #final-quiz').forEach((form) => {
+      const answers = drafts[form.id];
+      if (!answers) return;
+      Object.entries(answers).forEach(([name, value]) => {
+        const input = [...form.querySelectorAll('input[type="radio"]')].find((candidate) => candidate.name === name && candidate.value === value);
+        if (input) input.checked = true;
+      });
+      form.querySelectorAll('input[type="radio"]:checked').forEach((input) => input.dispatchEvent(new Event('change', { bubbles: true })));
+    });
+  }
+  document.addEventListener('change', (event) => {
+    const input = event.target;
+    if (input?.tagName === 'INPUT' && input.type === 'radio' && input.form?.id && (input.form.id.startsWith('sequence-quiz') || input.form.id === 'final-quiz')) saveQuizDraft(input.form);
+  });
+  restoreQuizDrafts();
+  document.querySelectorAll('[id^="quiz-reset"], #final-quiz-reset').forEach((button) => button.addEventListener('click', () => {
+    window.setTimeout(() => {
+      const form = button.closest('section')?.querySelector('form');
+      if (!form?.id) return;
+      const drafts = readQuizDrafts();
+      delete drafts[form.id];
+      saveQuizDrafts(drafts);
+    }, 0);
+  }));
+
+  let progressSaveTimer = 0;
+  window.addEventListener('scroll', () => {
+    window.clearTimeout(progressSaveTimer);
+    progressSaveTimer = window.setTimeout(saveProgressState, 250);
+  }, { passive: true });
+  window.addEventListener('pagehide', saveProgressState);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveProgressState(); });
 
   function firstIncomplete() {
     return guidedGroups.find((group) => !completed.has(group.number))?.number || guidedGroups.length;
@@ -729,7 +812,7 @@ if (quizForm7) {
     progress.style.width = `${complete ? 100 : Math.max(5, completed.size / guidedGroups.length * 100)}%`;
     banner.classList.toggle('is-complete', complete);
     if (developerMode) status.textContent = 'Mode développeur actif : toutes les séquences, les contenus et les questionnaires sont consultables sans validation.';
-    else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante.`;
+    else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante. Progression enregistrée automatiquement sur cet appareil.`;
   }
 
   function updateCompletion() {
@@ -870,6 +953,9 @@ if (quizForm7) {
   }
   const resumeNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
   showGroup(resumeNumber, false);
+  if (!developerMode && storedScrollY > 0) {
+    window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
+  }
 })();
 
 
