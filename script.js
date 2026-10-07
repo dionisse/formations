@@ -16,6 +16,8 @@
   document.querySelectorAll('img').forEach((image) => { image.draggable = false; });
 })();
 
+const isMobileCourseViewport = () => window.innerWidth <= 820 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 820px)').matches);
+
 const menuToggle = document.querySelector('.menu-toggle');
 const mainNav = document.querySelector('.main-nav');
 const backToTop = document.querySelector('.back-to-top');
@@ -645,8 +647,11 @@ if (quizForm7) {
   const guidedCurrentStorageKey = 'fiscale-guided-current-v1';
   const guidedProgressStorageKey = 'fiscale-guided-progress-v2';
   const guidedCookieMaxAge = 60 * 60 * 24 * 365;
-  let developerMode = new URLSearchParams(window.location.search).get('mode') === 'developer';
-  try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
+  const mobileNormalOnly = isMobileCourseViewport();
+  let developerMode = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
+  if (!mobileNormalOnly) {
+    try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
+  }
   const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
   const postCourseSections = [document.querySelector('#evaluation-finale'), document.querySelector('#certificate-section'), document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
   let completed = new Set();
@@ -957,6 +962,12 @@ if (quizForm7) {
   if (!developerMode && storedScrollY > 0) {
     window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
   }
+  window.addEventListener('resize', () => {
+    if (!isMobileCourseViewport() || !developerMode) return;
+    developerMode = false;
+    currentNumber = Math.min(currentNumber, firstIncomplete());
+    updateVisibility();
+  });
 })();
 
 
@@ -986,8 +997,11 @@ if (quizForm7) {
   const stateStorageKey = 'fiscale-certificate-state-v1';
   const paymentUrl = 'https://goespay.io/pay/FJK9BGDH';
   const whatsappNumber = '2290190895323';
-  let developerMode = new URLSearchParams(window.location.search).get('mode') === 'developer';
-  try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
+  const mobileNormalOnly = isMobileCourseViewport();
+  let developerMode = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
+  if (!mobileNormalOnly) {
+    try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
+  }
   let profile = {};
   let state = { accepted: false, previewReady: false, paymentConfirmed: false, validated: false, whatsappSent: false, reference: '' };
 
@@ -1223,7 +1237,14 @@ if (quizForm7) {
   if (state.accepted) certificateOffer.hidden = true;
   if (state.previewReady && profile.participantName) renderPreview();
   else if (state.accepted) certificateFormPanel.hidden = false;
-  if (developerMode) loadDeveloperCertificates();
+  if (developerMode) {
+    loadDeveloperCertificates();
+    window.addEventListener('resize', () => {
+      if (!isMobileCourseViewport() || !developerMode) return;
+      developerMode = false;
+      if (developerPanel) developerPanel.hidden = true;
+    });
+  }
 })();
 
 const finalQuizForm = document.querySelector('#final-quiz');
