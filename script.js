@@ -652,6 +652,11 @@ if (quizForm7) {
   const guidedCurrentStorageKey = 'fiscale-guided-current-v1';
   const guidedProgressStorageKey = 'fiscale-guided-progress-v2';
   const guidedCookieMaxAge = 60 * 60 * 24 * 365;
+  const guidedCourseVersion = 'formation-fiscale-v1';
+  const guidedDatabaseName = 'fiscale-course-progress';
+  const guidedDatabaseVersion = 1;
+  const guidedDatabaseStore = 'records';
+  const guidedDatabaseRecordKey = 'guided-progress';
   const mobileNormalOnly = isMobileCourseViewport();
   let developerMode = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
   if (!mobileNormalOnly) {
@@ -663,6 +668,8 @@ if (quizForm7) {
   let currentNumber = 1;
   let storedCurrentNumber = 1;
   let storedScrollY = 0;
+  let indexedProgressLoaded = false;
+  let indexedProgressPending = false;
 
   function readCookie(key) {
     const encodedKey = encodeURIComponent(key);
@@ -686,6 +693,60 @@ if (quizForm7) {
     } catch (error) { /* cookies indisponibles */ }
   }
 
+  function openGuidedDatabase() {
+    if (!window.indexedDB) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      let request;
+      try {
+        request = window.indexedDB.open(guidedDatabaseName, guidedDatabaseVersion);
+      } catch (error) {
+        resolve(null);
+        return;
+      }
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(guidedDatabaseStore)) database.createObjectStore(guidedDatabaseStore, { keyPath: 'key' });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+    });
+  }
+
+  function readGuidedDatabaseRecord() {
+    return openGuidedDatabase().then((database) => new Promise((resolve) => {
+      if (!database) { resolve(null); return; }
+      let request;
+      try {
+        const transaction = database.transaction(guidedDatabaseStore, 'readonly');
+        request = transaction.objectStore(guidedDatabaseStore).get(guidedDatabaseRecordKey);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => resolve(null);
+        transaction.oncomplete = () => database.close();
+        transaction.onerror = () => { database.close(); resolve(null); };
+      } catch (error) {
+        database.close();
+        resolve(null);
+      }
+    }));
+  }
+
+  function writeGuidedDatabaseRecord(record) {
+    return openGuidedDatabase().then((database) => new Promise((resolve) => {
+      if (!database) { resolve(false); return; }
+      try {
+        const transaction = database.transaction(guidedDatabaseStore, 'readwrite');
+        transaction.objectStore(guidedDatabaseStore).put({ key: guidedDatabaseRecordKey, ...record });
+        transaction.oncomplete = () => { database.close(); resolve(true); };
+        transaction.onerror = () => { database.close(); resolve(false); };
+        transaction.onabort = () => { database.close(); resolve(false); };
+      } catch (error) {
+        database.close();
+        resolve(false);
+      }
+    }));
+  }
+
   let storedProgress = null;
   try { storedProgress = JSON.parse(readPersistent(guidedProgressStorageKey) || 'null'); } catch (error) { storedProgress = null; }
   if (storedProgress && Array.isArray(storedProgress.completed)) {
@@ -703,11 +764,32 @@ if (quizForm7) {
     if (Number.isInteger(storedCurrent) && storedCurrent >= 1 && storedCurrent <= guidedGroups.length) storedCurrentNumber = storedCurrent;
   }
 
-  function saveProgressState() {
-    const state = JSON.stringify({ completed: [...completed].sort((a, b) => a - b), current: currentNumber, scrollY: Math.max(0, Math.round(window.scrollY || 0)), updatedAt: new Date().toISOString() });
-    writePersistent(guidedProgressStorageKey, state);
-    writePersistent(guidedStorageKey, JSON.stringify([...completed].sort((a, b) => a - b)));
+  function buildProgressState(quizAnswers = readQuizDrafts()) {
+    return {
+      courseVersion: guidedCourseVersion,
+      completed: [...completed].sort((a, b) => a - b),
+      current: currentNumber,
+      scrollY: Math.max(0, Math.round(window.scrollY || 0)),
+      quizAnswers,
+      lastSavedAt: new Date().toISOString()
+    };
+  }
+
+  function queueIndexedProgressWrite(state) {
+    if (!indexedProgressLoaded) {
+      indexedProgressPending = true;
+      return;
+    }
+    writeGuidedDatabaseRecord(state);
+  }
+
+  function saveProgressState(quizAnswers = readQuizDrafts()) {
+    const state = buildProgressState(quizAnswers);
+    const serializedState = JSON.stringify(state);
+    writePersistent(guidedProgressStorageKey, serializedState);
+    writePersistent(guidedStorageKey, JSON.stringify(state.completed));
     writePersistent(guidedCurrentStorageKey, String(currentNumber));
+    queueIndexedProgressWrite(state);
   }
 
   function saveProgress() { saveProgressState(); }
@@ -722,15 +804,21 @@ if (quizForm7) {
       return {};
     }
   }
-  function saveQuizDrafts(drafts) { writePersistent(quizDraftStorageKey, JSON.stringify(drafts)); }
+  function saveQuizDrafts(drafts) {
+    writePersistent(quizDraftStorageKey, JSON.stringify(drafts));
+    const state = buildProgressState(drafts);
+    writePersistent(guidedProgressStorageKey, JSON.stringify(state));
+    writePersistent(guidedStorageKey, JSON.stringify(state.completed));
+    writePersistent(guidedCurrentStorageKey, String(currentNumber));
+    queueIndexedProgressWrite(state);
+  }
   function saveQuizDraft(form) {
     if (!form?.id) return;
     const drafts = readQuizDrafts();
     drafts[form.id] = Object.fromEntries([...form.querySelectorAll('input[type="radio"]:checked')].map((input) => [input.name, input.value]));
     saveQuizDrafts(drafts);
   }
-  function restoreQuizDrafts() {
-    const drafts = readQuizDrafts();
+  function applyQuizDrafts(drafts) {
     document.querySelectorAll('form[id^="sequence-quiz"], #final-quiz').forEach((form) => {
       const answers = drafts[form.id];
       if (!answers) return;
@@ -738,9 +826,9 @@ if (quizForm7) {
         const input = [...form.querySelectorAll('input[type="radio"]')].find((candidate) => candidate.name === name && candidate.value === value);
         if (input) input.checked = true;
       });
-      form.querySelectorAll('input[type="radio"]:checked').forEach((input) => input.dispatchEvent(new Event('change', { bubbles: true })));
     });
   }
+  function restoreQuizDrafts() { applyQuizDrafts(readQuizDrafts()); }
   document.addEventListener('change', (event) => {
     const input = event.target;
     if (input?.tagName === 'INPUT' && input.type === 'radio' && input.form?.id && (input.form.id.startsWith('sequence-quiz') || input.form.id === 'final-quiz')) saveQuizDraft(input.form);
@@ -755,6 +843,32 @@ if (quizForm7) {
       saveQuizDrafts(drafts);
     }, 0);
   }));
+
+  async function hydrateProgressFromIndexedDB() {
+    const stored = await readGuidedDatabaseRecord();
+    const validStoredProgress = stored && stored.courseVersion === guidedCourseVersion;
+    if (validStoredProgress) {
+      if (Array.isArray(stored.completed)) {
+        completed = new Set(stored.completed.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length));
+      }
+      storedCurrentNumber = Number(stored.current) || 1;
+      storedScrollY = Number(stored.scrollY) || 0;
+      if (stored.quizAnswers && typeof stored.quizAnswers === 'object') {
+        writePersistent(quizDraftStorageKey, JSON.stringify(stored.quizAnswers));
+        applyQuizDrafts(stored.quizAnswers);
+      }
+      currentNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
+      updateVisibility();
+      if (!developerMode && storedScrollY > 0) {
+        window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
+      }
+    }
+    indexedProgressLoaded = true;
+    if (indexedProgressPending) {
+      indexedProgressPending = false;
+      saveProgressState(validStoredProgress && stored.quizAnswers && typeof stored.quizAnswers === 'object' ? stored.quizAnswers : readQuizDrafts());
+    }
+  }
 
   let progressSaveTimer = 0;
   window.addEventListener('scroll', () => {
@@ -970,6 +1084,7 @@ if (quizForm7) {
   if (!developerMode && storedScrollY > 0) {
     window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
   }
+  hydrateProgressFromIndexedDB();
   window.addEventListener('resize', () => {
     if (!isMobileCourseViewport() || !developerMode) return;
     developerMode = false;
