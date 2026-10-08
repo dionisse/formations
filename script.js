@@ -862,9 +862,12 @@ if (quizForm7) {
     updateCardStates();
     activateSequence(String(currentNumber));
     sequenceCards.forEach((card) => {
-      const isCurrent = Number(card.dataset.sequenceCard) === currentNumber;
-      card.classList.toggle('open', isCurrent);
-      card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(isCurrent));
+      const number = Number(card.dataset.sequenceCard);
+      const isCurrent = number === currentNumber;
+      const isLockedPreview = !developerMode && number > firstIncomplete();
+      const shouldOpen = isCurrent || (mobileNormalOnly && isLockedPreview);
+      card.classList.toggle('open', shouldOpen);
+      card.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', String(shouldOpen));
     });
   }
 
