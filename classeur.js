@@ -18,28 +18,49 @@
 
 const loginView = document.querySelector('#login-view');
 const appView = document.querySelector('#app-view');
-const loginForm = document.querySelector('#login-form');
-const loginError = document.querySelector('#login-error');
-const passwordInput = document.querySelector('#login-password');
-const togglePassword = document.querySelector('#toggle-password');
+const googleLoginPanel = document.querySelector('#google-login-panel');
+const loginError = document.querySelector('#participant-auth-status');
+const accessPanel = document.querySelector('#course-access-panel');
+const accessMessage = document.querySelector('#course-access-message');
+const accessStatus = document.querySelector('#course-access-status');
+const requestAccessButton = document.querySelector('#request-course-access');
+const paymentWhatsappLink = document.querySelector('#course-payment-whatsapp');
 const folderNav = document.querySelector('#folder-nav');
 const folderSearch = document.querySelector('#folder-search');
+const courseVersion = 'formation-fiscale-v1';
+const trainingWhatsappNumber = '2290190895323';
 let dossier = null;
 let currentFolderId = '01';
+let sessionLoadVersion = 0;
 const seenFolders = new Set();
+
+async function authHeaders(extra = {}) {
+  const auth = window.fiscaleParticipantAuth;
+  if (auth?.ready) await auth.ready;
+  const token = auth?.session?.access_token;
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+}
 
 const request = async (url, options = {}) => {
   let response;
   try {
-    response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers: await authHeaders({ 'Content-Type': 'application/json', ...(options.headers || {}) })
+    });
   } catch {
     throw new Error('Le serveur sécurisé est inaccessible. Lancez « npm run server » puis rechargez cette page.');
   }
   const contentType = response.headers.get('content-type') || '';
   const payload = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
   if (!response.ok) {
-    if (response.status === 404 || !contentType.includes('application/json')) throw new Error('Cette page n’est pas reliée au serveur sécurisé. Lancez « npm run server » puis ouvrez http://localhost:4173.');
-    throw new Error(payload.error || `La requête a échoué (${response.status}).`);
+    const error = new Error(payload.error || `La requête a échoué (${response.status}).`);
+    error.status = response.status;
+    error.code = payload.code || '';
+    error.payload = payload;
+    if (response.status === 404 || !contentType.includes('application/json')) error.message = 'Cette page n’est pas reliée au serveur sécurisé. Lancez « npm run server » puis ouvrez http://localhost:4173.';
+    throw error;
   }
   return payload;
 };
@@ -50,40 +71,140 @@ async function uploadRequest(url, file, method = 'POST') {
     response = await fetch(url, {
       method,
       credentials: 'same-origin',
-      headers: { 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
-      body: file,
+      headers: await authHeaders({ 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) }),
+      body: file
     });
   } catch {
     throw new Error('Le fichier n’a pas pu être envoyé au serveur.');
   }
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `L’envoi a échoué (${response.status}).`);
+  if (!response.ok) {
+    const error = new Error(payload.error || `L’envoi a échoué (${response.status}).`);
+    error.status = response.status;
+    error.code = payload.code || '';
+    throw error;
+  }
   return payload;
 }
 
-function showLogin(message = '') {
-  const authMessage = { 'google-not-configured': 'Google n’est pas encore configuré sur ce serveur.', 'google-state-error': 'La tentative Google a expiré. Recommencez la connexion.', 'google-denied': 'La connexion Google a été annulée.', 'google-error': 'Google n’a pas pu confirmer votre identité. Réessayez.' }[new URLSearchParams(window.location.search).get('auth')] || '';
-  appView.hidden = true;
-  loginView.hidden = false;
-  loginError.textContent = message || authMessage;
-  if (window.location.search) window.history.replaceState({}, document.title, window.location.pathname);
+async function openProtectedFile(fileId) {
+  const viewer = window.open('about:blank', '_blank');
+  if (!viewer) {
+    setUploadStatus('Autorisez les fenêtres contextuelles pour ouvrir ce fichier.', true);
+    return;
+  }
+  viewer.opener = null;
+  setUploadStatus('Vérification de votre accès et ouverture du fichier…');
+  try {
+    const response = await fetch(`/api/files/${encodeURIComponent(fileId)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: await authHeaders()
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `Ouverture impossible (${response.status}).`);
+    }
+    const objectUrl = URL.createObjectURL(await response.blob());
+    viewer.location.replace(objectUrl);
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 5 * 60 * 1000);
+    setUploadStatus('Fichier ouvert dans un nouvel onglet.');
+  } catch (error) {
+    viewer.close();
+    setUploadStatus(error.message || 'Le fichier n’a pas pu être ouvert.', true);
+  }
 }
+
+function showLogin(message = '') {
+  appView.hidden = true;
+  accessPanel.hidden = true;
+  loginView.hidden = false;
+  googleLoginPanel.hidden = false;
+  if (window.fiscaleParticipantAuth?.session) {
+    document.querySelector('#participant-google-login').hidden = false;
+    document.querySelector('#participant-logout-button').hidden = false;
+  }
+  if (message) loginError.textContent = message;
+}
+
 function requireUser(payload) {
   if (!payload || payload.authenticated !== true || !payload.user || typeof payload.user !== 'object') throw new Error('La session est invalide ou a expiré. Veuillez vous reconnecter.');
   const email = String(payload.user.email || '').trim();
   const name = String(payload.user.name || email || 'Participant').trim();
   if (!email) throw new Error('Le serveur n’a pas renvoyé l’identité du participant.');
-  return { email, name, developmentBypass: payload.developmentBypass === true };
+  return {
+    id: payload.user.id,
+    email,
+    name,
+    isAdmin: payload.isAdmin === true,
+    developmentBypass: payload.developmentBypass === true,
+    entitlement: payload.entitlement || null,
+    entitlementCheckError: payload.entitlementCheckError === true
+  };
 }
+
+function showAccess(user, session) {
+  appView.hidden = true;
+  loginView.hidden = false;
+  googleLoginPanel.hidden = true;
+  accessPanel.hidden = false;
+  document.querySelector('#access-user-email').textContent = user.email;
+  const status = session.entitlement?.status || 'not_requested';
+  if (session.entitlementCheckError) {
+    accessMessage.textContent = 'Nous ne pouvons pas vérifier le règlement pour le moment. Réessayez plus tard ou contactez le Cabinet GOBEX.';
+    accessStatus.textContent = 'La vérification sécurisée de votre accès est temporairement indisponible.';
+    requestAccessButton.disabled = true;
+    paymentWhatsappLink.hidden = true;
+  } else if (status === 'pending') {
+    accessMessage.textContent = 'Votre demande a été enregistrée. Le classeur sera activé après confirmation du règlement par le Cabinet GOBEX.';
+    accessStatus.textContent = 'Envoyez votre reçu à GOBEX en indiquant la référence de la demande ci-dessous.';
+    requestAccessButton.disabled = true;
+    requestAccessButton.textContent = 'Demande en attente de confirmation';
+    configurePaymentWhatsApp(user, session.entitlement);
+  } else if (status === 'revoked') {
+    accessMessage.textContent = 'L’accès à cette formation n’est pas actif. Contactez le Cabinet GOBEX pour toute question sur votre règlement.';
+    accessStatus.textContent = 'Une demande déjà clôturée ne peut pas être réouverte depuis le navigateur.';
+    requestAccessButton.disabled = true;
+    requestAccessButton.textContent = 'Contacter le Cabinet GOBEX';
+    configurePaymentWhatsApp(user, session.entitlement);
+  } else {
+    accessMessage.textContent = 'L’accès au classeur et aux livrables s’active après confirmation du règlement de cette formation.';
+    accessStatus.textContent = 'Préparez une demande puis envoyez votre reçu à GOBEX sur WhatsApp.';
+    requestAccessButton.disabled = false;
+    requestAccessButton.textContent = 'Préparer ma demande d’accès';
+    paymentWhatsappLink.hidden = true;
+  }
+}
+
+function configurePaymentWhatsApp(user, entitlement) {
+  if (!paymentWhatsappLink || !entitlement?.id) {
+    if (paymentWhatsappLink) paymentWhatsappLink.hidden = true;
+    return;
+  }
+  const message = [
+    'Bonjour GOBEX,',
+    'Je souhaite faire confirmer mon règlement pour accéder aux livrables et au classeur de la formation fiscale.',
+    `Compte participant : ${user.email}`,
+    `Formation : ${courseVersion}`,
+    `Référence de demande : ${entitlement.id}`,
+    'Je joins mon reçu de paiement à ce message.'
+  ].join('\n');
+  paymentWhatsappLink.href = `https://wa.me/${trainingWhatsappNumber}?text=${encodeURIComponent(message)}`;
+  paymentWhatsappLink.hidden = false;
+}
+
 function showApp(user) {
-  const safeUser = user && typeof user === 'object' ? user : {};
   loginView.hidden = true;
+  accessPanel.hidden = true;
   appView.hidden = false;
-  document.querySelector('#user-name').textContent = safeUser.name || safeUser.email || 'Participant';
-  document.querySelector('#user-email').textContent = safeUser.email || '';
-  document.querySelector('#session-mode').textContent = safeUser.developmentBypass ? 'Mode développement' : 'Session sécurisée';
-  appView.classList.toggle('development-mode', Boolean(safeUser.developmentBypass));
+  document.querySelector('#user-name').textContent = user.name || user.email || 'Participant';
+  document.querySelector('#user-email').textContent = user.email || '';
+  document.querySelector('#session-mode').textContent = user.developmentBypass ? 'Développement local' : user.isAdmin ? 'Administrateur vérifié' : 'Accès formation confirmé';
+  document.querySelector('#admin-link').hidden = !user.isAdmin && !user.developmentBypass;
+  document.querySelector('#logout-button').hidden = Boolean(user.developmentBypass);
+  appView.classList.toggle('development-mode', Boolean(user.developmentBypass || user.isAdmin));
 }
+
 function flattenFolders(folders) { return folders.flatMap((folder) => [folder, ...(folder.children || [])]); }
 function getFolder(id) { return flattenFolders(dossier.folders).find((folder) => folder.id === id); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
@@ -111,7 +232,7 @@ function renderNavigation() {
 function renderFiles(folder) {
   const files = filesForFolder(folder.id);
   if (!files.length) return '<div class="file-empty"><span>＋</span><div><strong>Aucun fichier ajouté dans cette rubrique.</strong><small>Ajoutez les pièces du dossier ici pour les retrouver au même endroit que leur référence pédagogique.</small></div></div>';
-  return `<div class="file-list">${files.map((file) => `<article class="file-row"><span class="file-type">${escapeHtml((file.mimeType || 'DOC').split('/').pop().slice(0, 4).toUpperCase())}</span><div class="file-main"><strong>${escapeHtml(file.name)}</strong><small>${formatBytes(file.size)} · dernière modification ${formatDate(file.updatedAt)} · stockage local : ${escapeHtml(file.localPath || 'dossier')}</small></div><div class="file-actions"><a href="/api/files/${encodeURIComponent(file.id)}" target="_blank" rel="noopener">Consulter</a><button type="button" data-file-action="rename" data-file-id="${escapeHtml(file.id)}">Renommer</button><button type="button" data-file-action="replace" data-file-id="${escapeHtml(file.id)}">Remplacer</button><button type="button" class="file-danger" data-file-action="delete" data-file-id="${escapeHtml(file.id)}">Supprimer</button></div></article>`).join('')}</div>`;
+  return `<div class="file-list">${files.map((file) => `<article class="file-row"><span class="file-type">${escapeHtml((file.mimeType || 'DOC').split('/').pop().slice(0, 4).toUpperCase())}</span><div class="file-main"><strong>${escapeHtml(file.name)}</strong><small>${formatBytes(file.size)} · dernière modification ${formatDate(file.updatedAt)} · stockage local : ${escapeHtml(file.localPath || 'dossier')}</small></div><div class="file-actions"><a href="#" data-file-action="open" data-file-id="${escapeHtml(file.id)}">Consulter</a><button type="button" data-file-action="rename" data-file-id="${escapeHtml(file.id)}">Renommer</button><button type="button" data-file-action="replace" data-file-id="${escapeHtml(file.id)}">Remplacer</button><button type="button" class="file-danger" data-file-action="delete" data-file-id="${escapeHtml(file.id)}">Supprimer</button></div></article>`).join('')}</div>`;
 }
 
 function renderFolder(folder) {
@@ -166,9 +287,14 @@ function bindFolderActions(folder) {
   const input = document.querySelector('#file-input');
   document.querySelector('#add-file-button').addEventListener('click', () => input.click());
   input.addEventListener('change', () => bindFileInput(input, folder));
-  document.querySelectorAll('[data-file-action]').forEach((button) => button.addEventListener('click', async () => {
+  document.querySelectorAll('[data-file-action]').forEach((button) => button.addEventListener('click', async (event) => {
     const file = (dossier.files || []).find((item) => item.id === button.dataset.fileId);
     if (!file) return;
+    if (button.dataset.fileAction === 'open') {
+      event.preventDefault();
+      await openProtectedFile(file.id);
+      return;
+    }
     if (button.dataset.fileAction === 'replace') { input.dataset.replaceId = file.id; input.click(); return; }
     if (button.dataset.fileAction === 'rename') {
       const name = window.prompt('Nouveau nom du fichier', file.name);
@@ -193,16 +319,63 @@ function updateProgress() {
   document.querySelector('#folder-count').textContent = `${dossier.folders.length} rubriques · ${flattenFolders(dossier.folders).length - dossier.folders.length} sous-rubriques`;
 }
 async function openSession() {
+  const version = ++sessionLoadVersion;
   try {
     const session = await request('/api/session');
+    if (version !== sessionLoadVersion) return;
     const user = requireUser(session);
-    dossier = await request('/api/dossier');
+    if (!user.isAdmin && !user.developmentBypass && (user.entitlementCheckError || user.entitlement?.status !== 'paid')) {
+      showAccess(user, session);
+      return;
+    }
+    const result = await request('/api/dossier');
+    if (version !== sessionLoadVersion) return;
+    dossier = result;
     showApp(user);
     renderFolder(getFolder(currentFolderId));
-  } catch (error) { showLogin(error.message === 'Authentification requise.' || error.message.includes('(401)') ? '' : error.message); }
+  } catch (error) {
+    if (version !== sessionLoadVersion) return;
+    if (error.status === 401) showLogin();
+    else if (error.status === 402) {
+      try {
+        const session = await request('/api/session');
+        showAccess(requireUser(session), session);
+      } catch { showLogin(error.message); }
+    } else showLogin(error.message);
+  }
 }
-if (loginForm) loginForm.addEventListener('submit', (event) => event.preventDefault());
-if (togglePassword && passwordInput) togglePassword.addEventListener('click', () => { passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password'; togglePassword.textContent = passwordInput.type === 'password' ? '◉' : '◌'; });
-document.querySelector('#logout-button').addEventListener('click', async () => { await request('/api/logout', { method: 'POST' }).catch(() => {}); dossier = null; seenFolders.clear(); showLogin(); });
+
+requestAccessButton?.addEventListener('click', async () => {
+  requestAccessButton.disabled = true;
+  accessStatus.textContent = 'Enregistrement de votre demande…';
+  try {
+    await request('/api/entitlements/request', {
+      method: 'POST',
+      body: JSON.stringify({ courseVersion })
+    });
+    await openSession();
+  } catch (error) {
+    accessStatus.textContent = error.message || 'La demande n’a pas pu être enregistrée.';
+    requestAccessButton.disabled = false;
+  }
+});
+
+document.querySelector('#logout-button').addEventListener('click', async () => {
+  const result = await window.fiscaleParticipantAuth?.signOut();
+  if (result?.error) {
+    window.alert('La déconnexion n’a pas abouti. Réessayez.');
+    return;
+  }
+  dossier = null;
+  seenFolders.clear();
+  window.location.reload();
+});
 folderSearch.addEventListener('input', renderNavigation);
-openSession();
+
+const participantAuth = window.fiscaleParticipantAuth;
+participantAuth?.subscribe(() => { void openSession(); });
+participantAuth?.ready.then(() => { void openSession(); }).catch((error) => {
+  showLogin('Le service de connexion n’a pas pu démarrer. Réessayez plus tard.');
+  console.error('Workbook auth initialization failed:', error);
+});
+if (!participantAuth) showLogin('Le service de connexion n’a pas pu démarrer. Actualisez la page.');

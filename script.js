@@ -658,10 +658,9 @@ if (quizForm7) {
   const guidedDatabaseStore = 'records';
   const guidedDatabaseRecordKey = 'guided-progress';
   const mobileNormalOnly = isMobileCourseViewport();
-  let developerMode = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
-  if (!mobileNormalOnly) {
-    try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
-  }
+  const developerModeRequested = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
+  let developerMode = false;
+  let developerModeRevokedForViewport = false;
   const allGuidedSections = guidedGroups.flatMap((group) => group.sections).map((id) => document.querySelector(`#${id}`)).filter(Boolean);
   const postCourseSections = [document.querySelector('#evaluation-finale'), document.querySelector('#certificate-section'), document.querySelector('#methode'), document.querySelector('#ressources'), document.querySelector('main > .final-cta')].filter(Boolean);
   let completed = new Set();
@@ -670,6 +669,24 @@ if (quizForm7) {
   let storedScrollY = 0;
   let indexedProgressLoaded = false;
   let indexedProgressPending = false;
+  let activeParticipantId = null;
+  let authSessionEventSeen = false;
+  let latestAuthSession = null;
+  let authChangeVersion = 0;
+  let cloudSyncTimer = 0;
+  let cloudSyncInFlight = false;
+  let pendingCloudState = null;
+  let cloudAccountHydrated = false;
+  const progressOwnerStorageKey = 'fiscale-guided-progress-owner-v1';
+
+  function scopedStorageKey(key, userId = activeParticipantId) {
+    const courseScopedKey = `${key}:${guidedCourseVersion}`;
+    return userId ? `${courseScopedKey}:participant:${userId}` : courseScopedKey;
+  }
+
+  function legacyScopedStorageKey(key, userId) {
+    return userId ? `${key}:participant:${userId}` : key;
+  }
 
   function readCookie(key) {
     const encodedKey = encodeURIComponent(key);
@@ -678,20 +695,32 @@ if (quizForm7) {
     try { return decodeURIComponent(entry.slice(encodedKey.length + 1)); } catch (error) { return null; }
   }
 
-  function readPersistent(key) {
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored !== null) return stored;
-    } catch (error) { /* stockage local indisponible */ }
-    return readCookie(key);
+  function readPersistentFor(key, userId = activeParticipantId) {
+    const scopedKey = scopedStorageKey(key, userId);
+    const legacyKey = legacyScopedStorageKey(key, userId);
+    const candidates = scopedKey === legacyKey ? [scopedKey] : [scopedKey, legacyKey];
+    for (const candidate of candidates) {
+      try {
+        const stored = localStorage.getItem(candidate);
+        if (stored !== null) return stored;
+      } catch (error) { /* stockage local indisponible */ }
+      const cookieValue = readCookie(candidate);
+      if (cookieValue !== null) return cookieValue;
+    }
+    return null;
   }
 
-  function writePersistent(key, value) {
-    try { localStorage.setItem(key, value); } catch (error) { /* cookie de secours ci-dessous */ }
+  function readPersistent(key) { return readPersistentFor(key); }
+
+  function writePersistentFor(key, value, userId = activeParticipantId) {
+    const scopedKey = scopedStorageKey(key, userId);
+    try { localStorage.setItem(scopedKey, value); } catch (error) { /* stockage local indisponible */ }
     try {
-      document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Max-Age=${guidedCookieMaxAge}; Path=/; SameSite=Lax`;
+      document.cookie = `${encodeURIComponent(scopedKey)}=${encodeURIComponent(value)}; Max-Age=${guidedCookieMaxAge}; Path=/; SameSite=Lax`;
     } catch (error) { /* cookies indisponibles */ }
   }
+
+  function writePersistent(key, value) { writePersistentFor(key, value); }
 
   function openGuidedDatabase() {
     if (!window.indexedDB) return Promise.resolve(null);
@@ -713,15 +742,37 @@ if (quizForm7) {
     });
   }
 
-  function readGuidedDatabaseRecord() {
+  function guidedDatabaseRecordKeyFor(userId = activeParticipantId) {
+    const courseKey = `${guidedDatabaseRecordKey}:${guidedCourseVersion}`;
+    return userId ? `${courseKey}:participant:${userId}` : courseKey;
+  }
+
+  function legacyGuidedDatabaseRecordKeyFor(userId) {
+    return userId ? `${guidedDatabaseRecordKey}:participant:${userId}` : guidedDatabaseRecordKey;
+  }
+
+  function readGuidedDatabaseRecord(userId = activeParticipantId) {
     return openGuidedDatabase().then((database) => new Promise((resolve) => {
       if (!database) { resolve(null); return; }
-      let request;
       try {
         const transaction = database.transaction(guidedDatabaseStore, 'readonly');
-        request = transaction.objectStore(guidedDatabaseStore).get(guidedDatabaseRecordKey);
-        request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => resolve(null);
+        const store = transaction.objectStore(guidedDatabaseStore);
+        const primaryRequest = store.get(guidedDatabaseRecordKeyFor(userId));
+        primaryRequest.onsuccess = () => {
+          if (primaryRequest.result) {
+            resolve(primaryRequest.result);
+            return;
+          }
+          const legacyKey = legacyGuidedDatabaseRecordKeyFor(userId);
+          if (legacyKey === guidedDatabaseRecordKeyFor(userId)) {
+            resolve(null);
+            return;
+          }
+          const legacyRequest = store.get(legacyKey);
+          legacyRequest.onsuccess = () => resolve(legacyRequest.result || null);
+          legacyRequest.onerror = () => resolve(null);
+        };
+        primaryRequest.onerror = () => resolve(null);
         transaction.oncomplete = () => database.close();
         transaction.onerror = () => { database.close(); resolve(null); };
       } catch (error) {
@@ -731,12 +782,12 @@ if (quizForm7) {
     }));
   }
 
-  function writeGuidedDatabaseRecord(record) {
+  function writeGuidedDatabaseRecord(record, userId = activeParticipantId) {
     return openGuidedDatabase().then((database) => new Promise((resolve) => {
       if (!database) { resolve(false); return; }
       try {
         const transaction = database.transaction(guidedDatabaseStore, 'readwrite');
-        transaction.objectStore(guidedDatabaseStore).put({ key: guidedDatabaseRecordKey, ...record });
+        transaction.objectStore(guidedDatabaseStore).put({ ...record, key: guidedDatabaseRecordKeyFor(userId) });
         transaction.oncomplete = () => { database.close(); resolve(true); };
         transaction.onerror = () => { database.close(); resolve(false); };
         transaction.onabort = () => { database.close(); resolve(false); };
@@ -775,42 +826,45 @@ if (quizForm7) {
     };
   }
 
-  function queueIndexedProgressWrite(state) {
-    if (!indexedProgressLoaded) {
+  function queueIndexedProgressWrite(state, userId = activeParticipantId) {
+    if (!indexedProgressLoaded && !userId) {
       indexedProgressPending = true;
       return;
     }
-    writeGuidedDatabaseRecord(state);
+    writeGuidedDatabaseRecord(state, userId);
+  }
+
+  function persistProgressLocally(state, userId = activeParticipantId) {
+    writePersistentFor(guidedProgressStorageKey, JSON.stringify(state), userId);
+    writePersistentFor(guidedStorageKey, JSON.stringify(state.completed), userId);
+    writePersistentFor(guidedCurrentStorageKey, String(state.current), userId);
+    writePersistentFor(quizDraftStorageKey, JSON.stringify(state.quizAnswers || {}), userId);
+    queueIndexedProgressWrite(state, userId);
+    if (userId) writePersistentFor(progressOwnerStorageKey, userId, null);
   }
 
   function saveProgressState(quizAnswers = readQuizDrafts()) {
     const state = buildProgressState(quizAnswers);
-    const serializedState = JSON.stringify(state);
-    writePersistent(guidedProgressStorageKey, serializedState);
-    writePersistent(guidedStorageKey, JSON.stringify(state.completed));
-    writePersistent(guidedCurrentStorageKey, String(currentNumber));
-    queueIndexedProgressWrite(state);
+    persistProgressLocally(state);
+    if (activeParticipantId && cloudAccountHydrated) scheduleCloudProgressWrite(state);
   }
 
   function saveProgress() { saveProgressState(); }
   function saveCurrent() { saveProgressState(); }
 
   const quizDraftStorageKey = 'fiscale-quiz-drafts-v1';
-  function readQuizDrafts() {
+  function readQuizDrafts(userId = activeParticipantId) {
     try {
-      const drafts = JSON.parse(readPersistent(quizDraftStorageKey) || '{}');
+      const drafts = JSON.parse(readPersistentFor(quizDraftStorageKey, userId) || '{}');
       return drafts && typeof drafts === 'object' ? drafts : {};
     } catch (error) {
       return {};
     }
   }
   function saveQuizDrafts(drafts) {
-    writePersistent(quizDraftStorageKey, JSON.stringify(drafts));
     const state = buildProgressState(drafts);
-    writePersistent(guidedProgressStorageKey, JSON.stringify(state));
-    writePersistent(guidedStorageKey, JSON.stringify(state.completed));
-    writePersistent(guidedCurrentStorageKey, String(currentNumber));
-    queueIndexedProgressWrite(state);
+    persistProgressLocally(state);
+    if (activeParticipantId && cloudAccountHydrated) scheduleCloudProgressWrite(state);
   }
   function saveQuizDraft(form) {
     if (!form?.id) return;
@@ -820,6 +874,7 @@ if (quizForm7) {
   }
   function applyQuizDrafts(drafts) {
     document.querySelectorAll('form[id^="sequence-quiz"], #final-quiz').forEach((form) => {
+      form.querySelectorAll('input[type="radio"]').forEach((input) => { input.checked = false; });
       const answers = drafts[form.id];
       if (!answers) return;
       Object.entries(answers).forEach(([name, value]) => {
@@ -853,6 +908,9 @@ if (quizForm7) {
       }
       storedCurrentNumber = Number(stored.current) || 1;
       storedScrollY = Number(stored.scrollY) || 0;
+      writePersistent(guidedProgressStorageKey, JSON.stringify(stored));
+      writePersistent(guidedStorageKey, JSON.stringify(stored.completed));
+      writePersistent(guidedCurrentStorageKey, String(stored.current));
       if (stored.quizAnswers && typeof stored.quizAnswers === 'object') {
         writePersistent(quizDraftStorageKey, JSON.stringify(stored.quizAnswers));
         applyQuizDrafts(stored.quizAnswers);
@@ -868,15 +926,212 @@ if (quizForm7) {
       indexedProgressPending = false;
       saveProgressState(validStoredProgress && stored.quizAnswers && typeof stored.quizAnswers === 'object' ? stored.quizAnswers : readQuizDrafts());
     }
+    if (authSessionEventSeen) void switchParticipantSession(latestAuthSession);
   }
+
+  function normalizeProgressState(candidate) {
+    if (!candidate || candidate.courseVersion !== guidedCourseVersion || !Array.isArray(candidate.completed)) return null;
+    const completedNumbers = [...new Set(candidate.completed.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length))].sort((a, b) => a - b);
+    const current = Number(candidate.current);
+    const scrollY = Number(candidate.scrollY);
+    const quizAnswers = candidate.quizAnswers && typeof candidate.quizAnswers === 'object' && !Array.isArray(candidate.quizAnswers) ? candidate.quizAnswers : {};
+    const savedAt = Date.parse(candidate.lastSavedAt || '');
+    return {
+      courseVersion: guidedCourseVersion,
+      completed: completedNumbers,
+      current: Number.isInteger(current) && current >= 1 && current <= guidedGroups.length ? current : 1,
+      scrollY: Number.isFinite(scrollY) ? Math.max(0, Math.round(scrollY)) : 0,
+      quizAnswers,
+      lastSavedAt: Number.isFinite(savedAt) ? new Date(savedAt).toISOString() : new Date(0).toISOString()
+    };
+  }
+
+  function parseStoredState(raw) {
+    if (!raw) return null;
+    try { return normalizeProgressState(JSON.parse(raw)); } catch (error) { return null; }
+  }
+
+  async function readLocalProgressState(userId = null) {
+    const localState = parseStoredState(readPersistentFor(guidedProgressStorageKey, userId));
+    if (localState) return localState;
+
+    const databaseState = normalizeProgressState(await readGuidedDatabaseRecord(userId));
+    if (databaseState) return databaseState;
+
+    let completedNumbers = [];
+    let current = 1;
+    let quizAnswers = {};
+    try {
+      const stored = JSON.parse(readPersistentFor(guidedStorageKey, userId) || '[]');
+      if (Array.isArray(stored)) completedNumbers = stored;
+    } catch (error) { /* ancienne progression invalide */ }
+    const storedCurrent = Number(readPersistentFor(guidedCurrentStorageKey, userId));
+    if (Number.isInteger(storedCurrent) && storedCurrent >= 1 && storedCurrent <= guidedGroups.length) current = storedCurrent;
+    try {
+      const drafts = JSON.parse(readPersistentFor(quizDraftStorageKey, userId) || '{}');
+      if (drafts && typeof drafts === 'object' && !Array.isArray(drafts)) quizAnswers = drafts;
+    } catch (error) { /* anciens brouillons invalides */ }
+
+    const normalizedCompleted = completedNumbers.filter((number) => Number.isInteger(number) && number >= 1 && number <= guidedGroups.length);
+    if (!normalizedCompleted.length && current === 1 && !Object.keys(quizAnswers).length) return null;
+    return normalizeProgressState({
+      courseVersion: guidedCourseVersion,
+      completed: normalizedCompleted,
+      current,
+      scrollY: 0,
+      quizAnswers,
+      lastSavedAt: new Date(0).toISOString()
+    });
+  }
+
+  function progressStateFromRemoteRow(row) {
+    if (!row || row.course_version !== guidedCourseVersion) return null;
+    return normalizeProgressState({
+      courseVersion: row.course_version,
+      completed: row.completed,
+      current: row.current_sequence,
+      scrollY: row.scroll_y,
+      quizAnswers: row.quiz_answers,
+      lastSavedAt: row.last_saved_at
+    });
+  }
+
+  function applyProgressState(state) {
+    const normalized = normalizeProgressState(state);
+    if (!normalized) return false;
+    completed = new Set(normalized.completed);
+    storedCurrentNumber = normalized.current;
+    storedScrollY = normalized.scrollY;
+    currentNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
+    writePersistentFor(quizDraftStorageKey, JSON.stringify(normalized.quizAnswers), activeParticipantId);
+    applyQuizDrafts(normalized.quizAnswers);
+    updateVisibility();
+    persistProgressLocally(normalized, activeParticipantId);
+    if (!developerMode && storedScrollY > 0) {
+      window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
+    }
+    return true;
+  }
+
+  function participantSyncStatus(message, state = '') {
+    window.fiscaleParticipantAuth?.setSyncStatus(message, state);
+  }
+
+  function scheduleCloudProgressWrite(state) {
+    if (!activeParticipantId || !cloudAccountHydrated || !window.fiscaleParticipantAuth?.client) return;
+    pendingCloudState = state;
+    window.clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = window.setTimeout(() => { void flushCloudProgress(); }, 700);
+  }
+
+  async function flushCloudProgress() {
+    if (cloudSyncInFlight || !pendingCloudState || !activeParticipantId) return;
+    const client = window.fiscaleParticipantAuth?.client;
+    if (!client) return;
+    const userId = activeParticipantId;
+    const state = pendingCloudState;
+    pendingCloudState = null;
+    cloudSyncInFlight = true;
+    participantSyncStatus('Synchronisation de votre progression…', 'pending');
+    try {
+      const { error } = await client.from('participant_progress').upsert({
+        user_id: userId,
+        course_version: state.courseVersion,
+        completed: state.completed,
+        current_sequence: state.current,
+        scroll_y: state.scrollY,
+        quiz_answers: state.quizAnswers,
+        last_saved_at: state.lastSavedAt
+      }, { onConflict: 'user_id,course_version' });
+      if (error) throw error;
+      if (activeParticipantId === userId) {
+        participantSyncStatus(`Progression synchronisée · ${new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}.`, 'success');
+      }
+    } catch (error) {
+      if (!pendingCloudState) pendingCloudState = state;
+      if (activeParticipantId === userId) {
+        participantSyncStatus('Progression conservée sur cet appareil. La synchronisation Supabase sera réessayée.', 'warning');
+      }
+      console.error('Participant progress sync failed:', error);
+    } finally {
+      cloudSyncInFlight = false;
+      if (pendingCloudState && activeParticipantId === userId) {
+        window.clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = window.setTimeout(() => { void flushCloudProgress(); }, 900);
+      }
+    }
+  }
+
+  async function switchParticipantSession(session) {
+    const changeVersion = ++authChangeVersion;
+    const userId = session?.user?.id || null;
+    if (!userId) {
+      cloudAccountHydrated = false;
+      if (activeParticipantId) window.location.reload();
+      return;
+    }
+    if (userId === activeParticipantId && cloudAccountHydrated) return;
+    const auth = window.fiscaleParticipantAuth;
+    const client = auth?.client;
+    if (!client) return;
+
+    participantSyncStatus('Chargement de votre progression…', 'pending');
+    const ownerId = readPersistentFor(progressOwnerStorageKey, null);
+    const mayImportGuestProgress = !ownerId && !activeParticipantId;
+    const [accountLocalState, remoteResult] = await Promise.all([
+      readLocalProgressState(userId),
+      client.from('participant_progress').select('user_id, course_version, completed, current_sequence, scroll_y, quiz_answers, last_saved_at').eq('user_id', userId).eq('course_version', guidedCourseVersion).maybeSingle()
+    ]);
+    if (changeVersion !== authChangeVersion) return;
+
+    const guestState = !accountLocalState && mayImportGuestProgress ? await readLocalProgressState(null) : null;
+    if (changeVersion !== authChangeVersion) return;
+    const localState = accountLocalState || guestState;
+    const remoteState = remoteResult.error ? null : progressStateFromRemoteRow(remoteResult.data);
+    const canWriteRemote = !remoteResult.error;
+    const localIsNewer = localState && remoteState && Date.parse(localState.lastSavedAt) > Date.parse(remoteState.lastSavedAt);
+
+    window.clearTimeout(cloudSyncTimer);
+    pendingCloudState = null;
+    activeParticipantId = userId;
+    cloudAccountHydrated = canWriteRemote;
+
+    if (remoteState && !localIsNewer) {
+      applyProgressState(remoteState);
+      participantSyncStatus('Compte connecté · progression récupérée depuis Supabase.', 'success');
+    } else if (localState) {
+      applyProgressState(localState);
+      participantSyncStatus(remoteResult.error ? 'Compte connecté. Le serveur est momentanément indisponible ; votre progression reste enregistrée sur cet appareil.' : 'Progression locale associée à votre compte participant.', remoteResult.error ? 'warning' : 'success');
+      if (canWriteRemote && (localIsNewer || !remoteState)) scheduleCloudProgressWrite(localState);
+    } else {
+      const initialState = normalizeProgressState({
+        courseVersion: guidedCourseVersion,
+        completed: [],
+        current: 1,
+        scrollY: 0,
+        quizAnswers: {},
+        lastSavedAt: remoteResult.error ? new Date(0).toISOString() : new Date().toISOString()
+      });
+      applyProgressState(initialState);
+      participantSyncStatus(remoteResult.error ? 'Compte connecté hors ligne. Votre nouvelle progression sera conservée sur cet appareil.' : 'Compte participant prêt · progression synchronisée.', remoteResult.error ? 'warning' : 'success');
+      if (canWriteRemote && !remoteState) scheduleCloudProgressWrite(initialState);
+    }
+  }
+
+  window.addEventListener('online', () => {
+    if (activeParticipantId && !cloudAccountHydrated) void switchParticipantSession(window.fiscaleParticipantAuth?.session);
+    else if (pendingCloudState) void flushCloudProgress();
+  });
 
   let progressSaveTimer = 0;
   window.addEventListener('scroll', () => {
     window.clearTimeout(progressSaveTimer);
     progressSaveTimer = window.setTimeout(saveProgressState, 250);
   }, { passive: true });
-  window.addEventListener('pagehide', saveProgressState);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveProgressState(); });
+  window.addEventListener('pagehide', () => { saveProgressState(); void flushCloudProgress(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { saveProgressState(); void flushCloudProgress(); }
+  });
 
   function firstIncomplete() {
     return guidedGroups.find((group) => !completed.has(group.number))?.number || guidedGroups.length;
@@ -936,7 +1191,7 @@ if (quizForm7) {
     progress.style.width = `${complete ? 100 : Math.max(5, completed.size / guidedGroups.length * 100)}%`;
     banner.classList.toggle('is-complete', complete);
     if (developerMode) status.textContent = 'Mode développeur actif : toutes les séquences, les contenus et les questionnaires sont consultables sans validation.';
-    else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante. Progression enregistrée automatiquement sur cet appareil.`;
+    else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante. Progression enregistrée automatiquement ${activeParticipantId && cloudAccountHydrated ? 'sur cet appareil et dans votre compte participant' : 'sur cet appareil'}.`;
   }
 
   function updateCompletion() {
@@ -994,11 +1249,11 @@ if (quizForm7) {
     return group;
   }
 
-  function showGroup(number, scroll = true) {
+  function showGroup(number, scroll = true, persist = true) {
     const targetNumber = Number(number);
     if (!isUnlocked(targetNumber)) { showLockedMessage(targetNumber); return; }
     currentNumber = targetNumber;
-    saveCurrent();
+    if (persist) saveCurrent();
     updateVisibility();
     if (scroll) getGroup(currentNumber).sections.map((id) => document.querySelector(`#${id}`)).find(Boolean)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1079,18 +1334,45 @@ if (quizForm7) {
   if (typeof window.MutationObserver === 'function') {
     document.querySelectorAll('#quiz-result, [id^="quiz-result-"]').forEach((result) => new window.MutationObserver(updateCompletion).observe(result, { attributes: true, attributeFilter: ['hidden'] }));
   }
-  const resumeNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
-  showGroup(resumeNumber, false);
-  if (!developerMode && storedScrollY > 0) {
-    window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
+  const participantAuth = window.fiscaleParticipantAuth;
+  async function verifyAdministratorDeveloperMode() {
+    if (!developerModeRequested && !developerMode) return;
+    const serverSession = await participantAuth?.getServerSession();
+    const canEnable = developerModeRequested && !developerModeRevokedForViewport && !isMobileCourseViewport() && serverSession?.isAdmin === true;
+    if (canEnable && !developerMode) {
+      developerMode = true;
+      currentNumber = 1;
+      updateVisibility();
+    } else if (!canEnable && developerMode) {
+      developerMode = false;
+      currentNumber = Math.min(currentNumber, firstIncomplete());
+      updateVisibility();
+    }
   }
-  hydrateProgressFromIndexedDB();
-  window.addEventListener('resize', () => {
-    if (!isMobileCourseViewport() || !developerMode) return;
+  function disableDeveloperModeOnMobile() {
+    if (!isMobileCourseViewport()) return;
+    developerModeRevokedForViewport = true;
+    if (!developerMode) return;
     developerMode = false;
     currentNumber = Math.min(currentNumber, firstIncomplete());
     updateVisibility();
+  }
+  participantAuth?.subscribe((session) => {
+    authSessionEventSeen = true;
+    latestAuthSession = session;
+    if (indexedProgressLoaded) void switchParticipantSession(session);
+    void verifyAdministratorDeveloperMode();
   });
+  participantAuth?.ready.then(() => { void verifyAdministratorDeveloperMode(); }).catch(() => {});
+
+  const resumeNumber = developerMode ? 1 : Math.min(storedCurrentNumber, firstIncomplete());
+  showGroup(resumeNumber, false, false);
+  if (!developerMode && storedScrollY > 0) {
+    window.setTimeout(() => window.scrollTo({ top: storedScrollY, behavior: 'auto' }), 80);
+  }
+  void hydrateProgressFromIndexedDB();
+  window.addEventListener('resize', disableDeveloperModeOnMobile);
+  window.addEventListener('orientationchange', disableDeveloperModeOnMobile);
 })();
 
 
@@ -1121,10 +1403,9 @@ if (quizForm7) {
   const paymentUrl = 'https://goespay.io/pay/FJK9BGDH';
   const whatsappNumber = '2290190895323';
   const mobileNormalOnly = isMobileCourseViewport();
-  let developerMode = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
-  if (!mobileNormalOnly) {
-    try { developerMode = developerMode || localStorage.getItem('fiscale-developer-mode') === '1'; } catch (error) { /* stockage local indisponible */ }
-  }
+  const developerModeRequested = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';
+  let developerMode = false;
+  let developerModeRevokedForViewport = false;
   let profile = {};
   let state = { accepted: false, previewReady: false, paymentConfirmed: false, validated: false, whatsappSent: false, reference: '' };
 
@@ -1246,6 +1527,13 @@ if (quizForm7) {
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   }
 
+  async function adminAuthHeaders(extra = {}) {
+    const auth = window.fiscaleParticipantAuth;
+    if (auth?.ready) await auth.ready;
+    const token = auth?.session?.access_token;
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra };
+  }
+
   async function parseResponse(response) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'request_failed');
@@ -1272,7 +1560,7 @@ if (quizForm7) {
     if (!developerPanel) return;
     developerPanel.hidden = false;
     try {
-      const result = await parseResponse(await fetch('/api/certificates', { cache: 'no-store' }));
+      const result = await parseResponse(await fetch('/api/certificates', { cache: 'no-store', headers: await adminAuthHeaders() }));
       renderDeveloperCertificates(result.certificates || []);
       developerMessage.textContent = '';
     } catch (error) {
@@ -1283,7 +1571,7 @@ if (quizForm7) {
   async function saveDeveloperCertificate(body) {
     developerMessage.textContent = 'Enregistrement en cours…';
     try {
-      await parseResponse(await fetch('/api/certificates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+      await parseResponse(await fetch('/api/certificates', { method: 'POST', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) }));
       developerMessage.textContent = 'Décision enregistrée.';
       developerForm.reset();
       await loadDeveloperCertificates();
@@ -1294,7 +1582,7 @@ if (quizForm7) {
 
   async function changeDeveloperStatus(reference, status) {
     try {
-      await parseResponse(await fetch(`/api/certificates/${encodeURIComponent(reference)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }));
+      await parseResponse(await fetch(`/api/certificates/${encodeURIComponent(reference)}`, { method: 'PATCH', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) }));
       developerMessage.textContent = `Certificat ${reference} : ${developerStatusLabel(status)}.`;
       await loadDeveloperCertificates();
     } catch (error) {
@@ -1360,14 +1648,29 @@ if (quizForm7) {
   if (state.accepted) certificateOffer.hidden = true;
   if (state.previewReady && profile.participantName) renderPreview();
   else if (state.accepted) certificateFormPanel.hidden = false;
-  if (developerMode) {
-    loadDeveloperCertificates();
-    window.addEventListener('resize', () => {
-      if (!isMobileCourseViewport() || !developerMode) return;
+  async function verifyAdministratorCertificateMode() {
+    if (!developerModeRequested && !developerMode) return;
+    const serverSession = await window.fiscaleParticipantAuth?.getServerSession();
+    const canEnable = developerModeRequested && !developerModeRevokedForViewport && !isMobileCourseViewport() && serverSession?.isAdmin === true;
+    if (canEnable && !developerMode) {
+      developerMode = true;
+      loadDeveloperCertificates();
+    } else if (!canEnable && developerMode) {
       developerMode = false;
       if (developerPanel) developerPanel.hidden = true;
-    });
+    }
   }
+  function disableAdministratorModeOnMobile() {
+    if (!isMobileCourseViewport()) return;
+    developerModeRevokedForViewport = true;
+    developerMode = false;
+    if (developerPanel) developerPanel.hidden = true;
+  }
+  const participantAuth = window.fiscaleParticipantAuth;
+  participantAuth?.subscribe(() => { void verifyAdministratorCertificateMode(); });
+  participantAuth?.ready.then(() => { void verifyAdministratorCertificateMode(); }).catch(() => {});
+  window.addEventListener('resize', disableAdministratorModeOnMobile);
+  window.addEventListener('orientationchange', disableAdministratorModeOnMobile);
 })();
 
 const finalQuizForm = document.querySelector('#final-quiz');

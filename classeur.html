@@ -19,23 +19,36 @@
       <div class="login-kicker">LIVRABLE · CABINET GOBEX</div>
       <h1>Votre classeur de<br /><em>revue fiscale.</em></h1>
       <p class="login-intro">Un espace de travail réservé aux participants effectifs de la formation. Retrouvez les dossiers, consultez les fichiers associés et ajoutez les nouvelles pièces au bon endroit.</p>
-      <div class="login-form google-login-panel">
-        <p class="google-login-text">Utilisez votre compte Google professionnel pour vous inscrire ou accéder à votre espace de travail.</p>
-        <a id="google-login-button" class="login-submit google-login-button" href="/auth/google">Continuer avec Google <span>→</span></a>
-        <p id="login-error" class="login-error" role="alert"></p>
+      <div id="google-login-panel" class="login-form google-login-panel">
+        <p class="google-login-text">Connectez-vous avec le même compte Google que votre espace participant. Le classeur s’ouvre après confirmation du règlement de la formation.</p>
+        <button id="participant-google-login" data-redirect-to="/classeur.html" class="login-submit google-login-button" type="button">Continuer avec Google <span>→</span></button>
+        <p id="participant-auth-status" class="login-error" role="status" aria-live="polite">La connexion et la validation de l’accès sont sécurisées par Supabase.</p>
       </div>
-      <div class="login-footnote"><span class="lock-icon">⌑</span><span>Accès dossier · Fichiers consultables et modifiables · Classement par rubrique</span></div>
+      <div id="course-access-panel" class="course-access-panel" hidden>
+        <span class="access-status-kicker">ACCÈS AU CLASSEUR</span>
+        <h2>Votre compte est connecté.</h2>
+        <p id="course-access-message">L’accès au classeur s’active après confirmation du règlement de cette formation.</p>
+        <button id="request-course-access" class="login-submit" type="button">Préparer ma demande d’accès <span>→</span></button>
+        <a id="course-payment-whatsapp" class="course-payment-whatsapp" href="#" target="_blank" rel="noopener noreferrer" hidden>Envoyer ma demande à GOBEX sur WhatsApp ↗</a>
+        <p id="course-access-status" class="login-error" role="status" aria-live="polite"></p>
+        <p class="course-account-note">Compte : <strong id="access-user-email"></strong></p>
+        <button id="participant-logout-button" class="access-logout" type="button">Se déconnecter</button>
+      </div>
+      <div class="login-footnote"><span class="lock-icon">⌑</span><span>Accès dossier · Livrables privés · Règlement confirmé par le Cabinet GOBEX</span></div>
     </div>
     <div class="login-side-note"><span>03</span><div><strong>Tenue & classement</strong><small>24 rubriques · 7 sous-rubriques</small></div></div>
   </div>
 
   <div id="app-view" class="app-view" hidden>
-    <header class="app-header"><a class="app-brand" href="/"><span class="app-brand-mark">✓</span><strong>Fiscale<span>.</span></strong><small>Classeur de revue</small></a><div class="app-header-center"><span class="online-dot"></span><span id="session-mode">Session sécurisée</span><span class="read-only-badge">ESPACE DOSSIER</span></div><div class="app-user"><div><strong id="user-name">Participant</strong><small id="user-email"></small></div><button id="logout-button" type="button">Se déconnecter</button></div></header>
+    <header class="app-header"><a class="app-brand" href="/"><span class="app-brand-mark">✓</span><strong>Fiscale<span>.</span></strong><small>Classeur de revue</small></a><div class="app-header-center"><span class="online-dot"></span><span id="session-mode">Session sécurisée</span><span class="read-only-badge">ESPACE DOSSIER</span></div><div class="app-user"><a id="admin-link" class="admin-header-link" href="/admin.html" hidden>Administration</a><div><strong id="user-name">Participant</strong><small id="user-email"></small></div><button id="logout-button" type="button">Se déconnecter</button></div></header>
     <div class="app-shell">
       <aside class="app-sidebar"><div class="sidebar-title"><span>INDEX DU DOSSIER</span><strong id="folder-count">24 rubriques</strong></div><div class="search-box"><span>⌕</span><input id="folder-search" type="search" placeholder="Rechercher une rubrique" /></div><nav id="folder-nav" class="folder-nav" aria-label="Index du dossier"></nav><div class="sidebar-foot"><span class="lock-icon">⌑</span><div><strong>Fichiers du dossier</strong><small>Ajoutez chaque pièce dans sa rubrique pour la retrouver.</small></div></div></aside>
       <main class="app-main"><div class="content-top"><div><div class="breadcrumb"><span>Fiscale</span><i>/</i><span>Classeur</span><i>/</i><strong id="breadcrumb-current">Rapport</strong></div><div class="content-kicker">SÉQUENCE 03 · DOSSIER DE REVUE FISCALE</div><h1 id="page-title">Rapport</h1><p id="page-description">Version projet puis définitive</p></div><div class="content-actions"><span id="folder-reference" class="folder-reference">01-RAP</span><span id="folder-status" class="folder-status">À consulter</span></div></div><div class="progress-strip"><div><span>Progression du classement</span><strong id="progress-count">0 / 24 consultés</strong></div><div class="progress-track"><i id="progress-bar"></i></div><span id="progress-percent">0%</span></div><div id="folder-content" class="folder-content"></div></main>
     </div>
   </div>
-  <script src="classeur.js?v=3"></script>
+  <script type="module" src="/supabase-env.js"></script>
+  <script id="supabase-js-sdk" defer src="/vendor/supabase.js"></script>
+  <script type="module" src="/participant-auth.js"></script>
+  <script type="module" src="/classeur.js?v=4"></script>
 </body>
 </html>

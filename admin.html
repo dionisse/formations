@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#10212b" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="Administration des accès aux formations du Cabinet GOBEX." />
+  <title>Administration · Fiscale</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-page">
+  <header class="admin-header">
+    <a class="admin-brand" href="/"><span class="admin-brand-mark">✓</span><span>Fiscale<span>.</span><small>ADMINISTRATION GOBEX</small></span></a>
+    <nav><a href="/">Accueil</a><a href="/classeur.html">Classeur</a><span id="admin-identity" hidden></span><button id="participant-logout-button" type="button" hidden>Déconnexion</button></nav>
+  </header>
+
+  <main class="admin-main">
+    <section id="admin-login-view" class="admin-gate">
+      <div class="admin-gate-mark" aria-hidden="true">⌑</div>
+      <span class="admin-kicker">ACCÈS ADMINISTRATEUR</span>
+      <h1>Administration<br /><em>des accès formation.</em></h1>
+      <p>Connectez-vous avec le compte Google administrateur autorisé pour examiner les demandes et confirmer les règlements reçus.</p>
+      <button id="participant-google-login" data-redirect-to="/admin.html" class="admin-google-button" type="button"><span class="google-mark">G</span><span>Continuer avec Google</span><b aria-hidden="true">→</b></button>
+      <p id="participant-auth-status" class="admin-auth-status" role="status" aria-live="polite">Seul le compte administrateur autorisé peut accéder à ces données.</p>
+    </section>
+
+    <section id="admin-denied-view" class="admin-gate admin-denied" hidden>
+      <div class="admin-gate-mark">!</div><span class="admin-kicker">ACCÈS REFUSÉ</span>
+      <h1>Ce compte n’est pas<br /><em>administrateur.</em></h1>
+      <p>Utilisez le compte Google administrateur autorisé. Aucun droit d’accès ne peut être accordé depuis ce compte.</p>
+      <p class="admin-current-account">Compte connecté : <strong id="admin-denied-email"></strong></p>
+      <button id="denied-signout-button" class="admin-secondary-button" type="button">Déconnexion et choisir un autre compte</button>
+    </section>
+
+    <section id="admin-dashboard" hidden>
+      <div class="admin-dashboard-hero"><div><span class="admin-kicker">ESPACE ADMINISTRATEUR</span><h1>Demandes de <em>règlement.</em></h1><p>Confirmez les paiements après vérification du reçu. La validation active uniquement la formation concernée.</p></div><div class="admin-hero-mark" aria-hidden="true">G</div></div>
+      <div class="admin-summary" aria-label="Résumé des demandes"><article><span>EN ATTENTE</span><strong id="admin-pending-count">—</strong></article><article><span>ACCÈS ACTIFS</span><strong id="admin-paid-count">—</strong></article><article><span>ACCÈS RÉVOQUÉS</span><strong id="admin-revoked-count">—</strong></article></div>
+      <section class="admin-requests" aria-labelledby="admin-requests-title">
+        <div class="admin-section-head"><div><span class="admin-kicker">SUIVI DES PAIEMENTS</span><h2 id="admin-requests-title">Participants et formations</h2></div><button id="admin-refresh-button" class="admin-refresh-button" type="button">Actualiser ↻</button></div>
+        <div id="admin-feedback" class="admin-feedback" role="status" aria-live="polite"></div>
+        <div id="admin-entitlements-list" class="admin-entitlements-list"><p class="admin-empty">Chargement des demandes…</p></div>
+      </section>
+      <section class="admin-audit" aria-labelledby="admin-audit-title"><div><span class="admin-kicker">TRAÇABILITÉ</span><h2 id="admin-audit-title">Historique des décisions</h2></div><div id="admin-events-list" class="admin-events-list"><p class="admin-empty">Chargement de l’historique…</p></div></section>
+      <p class="admin-security-note"><span>⌑</span> Les droits sont appliqués par le serveur et Supabase RLS ; cette interface ne peut pas contourner la vérification de paiement.</p>
+    </section>
+  </main>
+
+  <footer class="admin-footer"><span>Fiscale<span>.</span> · Cabinet GOBEX</span><span>Administration protégée par Supabase Auth.</span></footer>
+
+  <script type="module" src="/supabase-env.js"></script>
+  <script id="supabase-js-sdk" defer src="/vendor/supabase.js"></script>
+  <script type="module" src="/participant-auth.js"></script>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

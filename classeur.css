@@ -25,3 +25,22 @@
 html,body{ -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
 input,textarea,select,[contenteditable="true"]{ -webkit-user-select:text; user-select:text; -webkit-touch-callout:default }
 img{ -webkit-user-drag:none; user-drag:none }
+
+/* Connexion participant Supabase et accès conditionné au règlement. */
+.google-login-panel[hidden],.course-access-panel[hidden]{display:none!important}
+.google-login-button{font-family:'DM Sans',Arial,sans-serif;text-align:left;text-decoration:none}
+.google-login-button[hidden]{display:none!important}
+#participant-auth-status{color:var(--muted);line-height:1.6}
+#participant-auth-status.is-error{color:var(--red)}
+.course-access-panel{margin-top:27px;padding:19px;border:1px solid #e8dfc9;border-radius:8px;background:#fffdf7}
+.access-status-kicker{color:#a87520;font-size:.55rem;font-weight:700;letter-spacing:.14em}
+.course-access-panel h2{margin:8px 0 8px;font:800 1.15rem/1.2 'Manrope',Arial,sans-serif;letter-spacing:-.04em}
+.course-access-panel>p:not(.course-account-note){color:var(--muted);font-size:.68rem;line-height:1.65}
+#request-course-access{margin-top:15px}
+#request-course-access:disabled{background:#849391;cursor:wait}
+.course-payment-whatsapp{display:block;margin-top:12px;color:var(--teal);font-size:.65rem;font-weight:700;line-height:1.5;text-decoration:underline;text-underline-offset:3px}
+.course-account-note{margin-top:13px;padding-top:11px;border-top:1px solid var(--line);color:var(--muted);font-size:.59rem;overflow-wrap:anywhere}
+.course-account-note strong{color:var(--ink)}
+.access-logout{margin-top:10px;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:.62rem;text-decoration:underline;text-underline-offset:3px}
+.admin-header-link{padding:7px 9px;border:1px solid #d5e8e2;border-radius:4px;color:var(--teal);font-size:.6rem;font-weight:700}
+.admin-header-link:hover{background:var(--teal-soft)}

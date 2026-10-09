@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#10212b" />
+  <meta name="description" content="Connectez-vous à la plateforme de formation GOBEX pour suivre vos parcours et retrouver votre progression." />
+  <title>Espace participant · Fiscale</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="plateforme.css" />
+</head>
+<body class="participant-platform-page">
+  <header class="platform-header">
+    <a class="platform-brand" href="/" aria-label="Fiscale, accueil">
+      <span class="platform-brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40"><path d="M20 3 34 8v10c0 9.3-5.8 15.4-14 19C11.8 33.4 6 27.3 6 18V8l14-5Z" fill="currentColor"/><path d="m12.5 20.2 4.4 4.4 10.9-11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"/></svg>
+      </span>
+      <span class="platform-brand-name">Fiscale<span>.</span><small>FORMATION GOBEX</small></span>
+    </a>
+    <nav class="platform-nav" aria-label="Navigation de la plateforme">
+      <a href="/">Accueil</a>
+      <a href="#platform-dashboard" id="platform-catalogue-link">Mes formations</a>
+    </nav>
+    <div id="participant-account-profile" class="platform-user" hidden>
+      <img id="participant-account-avatar" alt="" />
+      <div class="platform-user-copy"><strong id="participant-account-name">Participant</strong><span id="participant-account-email"></span></div>
+      <button id="participant-logout-button" class="platform-logout" type="button">Déconnexion</button>
+    </div>
+  </header>
+
+  <main class="platform-main">
+    <section id="platform-login-view" class="platform-login-view" aria-labelledby="platform-login-title">
+      <div class="platform-login-copy">
+        <div class="platform-eyebrow"><span></span> L’ESPACE FORMATION GOBEX</div>
+        <h1 id="platform-login-title">Vos formations,<br /><em>un seul espace.</em></h1>
+        <p class="platform-lede">Connectez-vous pour suivre vos parcours, reprendre là où vous vous êtes arrêté et retrouver votre progression sur tous vos appareils.</p>
+        <div class="platform-login-points">
+          <div><span class="platform-point-icon">✓</span><span><strong>Votre progression vous suit</strong><small>Séquences terminées, réponses et position de lecture.</small></span></div>
+          <div><span class="platform-point-icon">＋</span><span><strong>Un catalogue qui grandit</strong><small>Les nouvelles formations apparaîtront dans ce même espace.</small></span></div>
+        </div>
+        <div class="platform-login-signature"><span>GOBEX</span><i></i><span>Apprendre avec méthode</span></div>
+      </div>
+
+      <div class="platform-login-card">
+        <div class="platform-login-card-mark" aria-hidden="true">↗</div>
+        <span class="platform-card-kicker">ESPACE PARTICIPANT</span>
+        <h2>Connectez-vous à votre compte</h2>
+        <p>Utilisez Google pour créer votre compte participant ou retrouver vos formations.</p>
+        <button id="participant-google-login" class="platform-google-button" type="button">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.9 6.1-15Z"/><path fill="#4285F4" d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20 20 0 0 0 24 44Z"/><path fill="#34A853" d="M12.6 27.7a12 12 0 0 1 0-7.4V15H5.8a20 20 0 0 0 0 17.9l6.8-5.2Z"/><path fill="#EA4335" d="M24 11.9c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.9 29.5 4 24 4A20 20 0 0 0 5.8 15l6.8 5.3c1.6-4.8 6.1-8.4 11.4-8.4Z"/></svg>
+          <span>Continuer avec Google</span>
+          <b aria-hidden="true">→</b>
+        </button>
+        <p id="participant-auth-status" class="platform-auth-status" role="status" aria-live="polite">La première connexion crée automatiquement votre compte participant.</p>
+        <div class="platform-login-divider"><span></span><small>CONNEXION SÉCURISÉE</small><span></span></div>
+        <p class="platform-login-privacy"><span aria-hidden="true">⌑</span> Aucun mot de passe Fiscale n’est créé ou conservé. La connexion est gérée par Google et Supabase.</p>
+      </div>
+    </section>
+
+    <section id="platform-dashboard" class="platform-dashboard" aria-labelledby="platform-dashboard-title" hidden>
+      <div class="platform-dashboard-hero">
+        <div>
+          <div class="platform-eyebrow"><span></span> VOTRE ESPACE D’APPRENTISSAGE</div>
+          <h1 id="platform-dashboard-title">Bonjour, <em id="platform-greeting-name">participant</em>.</h1>
+          <p>Retrouvez vos formations et reprenez votre parcours à votre rythme.</p>
+        </div>
+        <div class="dashboard-welcome-mark" aria-hidden="true"><span>G</span><i>✦</i></div>
+      </div>
+
+      <div class="platform-stats" aria-label="Résumé de votre espace">
+        <article class="platform-stat-card"><span class="platform-stat-icon">▤</span><div><strong id="platform-training-count">01</strong><span id="platform-training-label">formation disponible</span></div></article>
+        <article class="platform-stat-card"><span class="platform-stat-icon stat-icon-gold">↗</span><div><strong id="platform-active-count">—</strong><span>parcours commencé</span></div></article>
+        <article class="platform-stat-card"><span class="platform-stat-icon stat-icon-soft">✓</span><div><strong>Google</strong><span>compte connecté</span></div></article>
+      </div>
+
+      <section id="platform-catalogue" class="platform-catalogue" aria-labelledby="platform-catalogue-title">
+        <div class="platform-section-heading"><div><span class="platform-section-label">LE CATALOGUE GOBEX</span><h2 id="platform-catalogue-title">Mes formations</h2><p>Chaque parcours conserve sa progression indépendamment des autres.</p></div><span class="catalogue-count" id="platform-catalogue-count">01 PARCOURS</span></div>
+        <p id="platform-load-status" class="platform-load-status" role="status" aria-live="polite"></p>
+        <div id="training-catalog" class="training-catalog"></div>
+      </section>
+      <div id="participant-sync-status" class="platform-sync-status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="platform-footer"><a href="/">Fiscale<span>.</span></a><span>Une plateforme de formation proposée par le Cabinet GOBEX.</span><a href="/index.html#programme">Découvrir le parcours fiscal →</a></footer>
+
+  <script type="module" src="/supabase-env.js"></script>
+  <script id="supabase-js-sdk" defer src="/vendor/supabase.js"></script>
+  <script type="module" src="participant-auth.js"></script>
+  <script type="module" src="plateforme.js"></script>
+</body>
+</html>

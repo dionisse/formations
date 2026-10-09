@@ -38,10 +38,30 @@
         <a href="#programme">Programme</a>
         <a href="#methode">Méthode</a>
         <a href="#ressources">Ressources</a>
+        <a href="/connexion.html">Espace participant</a>
       </nav>
-      <a class="button button-small button-dark nav-cta" href="#programme">Explorer le parcours <span aria-hidden="true">↗</span></a>
+      <button class="button button-small button-dark nav-cta participant-account-trigger" id="participant-account-button" type="button" aria-haspopup="dialog" aria-controls="participant-account-dialog"><span id="participant-account-button-label">Connexion</span><span aria-hidden="true">↗</span></button>
     </div>
   </header>
+
+  <dialog class="participant-account-dialog" id="participant-account-dialog" aria-labelledby="participant-account-title">
+    <button class="participant-dialog-close" id="participant-account-close" type="button" aria-label="Fermer la fenêtre">×</button>
+    <div class="participant-dialog-brand"><span class="participant-dialog-mark" aria-hidden="true">✓</span><span>Fiscale<span>.</span></span></div>
+    <div class="participant-dialog-kicker">ESPACE PARTICIPANT</div>
+    <h2 id="participant-account-title">Votre parcours, <em>à vous.</em></h2>
+    <p class="participant-dialog-intro">Connectez-vous avec Google pour retrouver votre progression et vos réponses depuis vos appareils.</p>
+    <div id="participant-account-profile" class="participant-account-profile" hidden>
+      <img id="participant-account-avatar" alt="" />
+      <div class="participant-account-identity"><strong id="participant-account-name">Participant</strong><span id="participant-account-email"></span></div>
+      <a id="participant-dashboard-link" class="participant-dashboard-link" href="/connexion.html" hidden>Ouvrir mon espace →</a>
+      <button id="participant-logout-button" class="participant-logout-button" type="button">Se déconnecter</button>
+    </div>
+    <button id="participant-google-login" class="participant-google-button" type="button"><span class="google-g-mark" aria-hidden="true">G</span><span>Continuer avec Google</span><span aria-hidden="true">→</span></button>
+    <p id="participant-auth-status" class="participant-auth-status" role="status" aria-live="polite">La première connexion crée automatiquement votre compte participant.</p>
+    <a class="participant-platform-link" href="/connexion.html">Découvrir la plateforme multi-formations <span aria-hidden="true">→</span></a>
+    <p id="participant-sync-status" class="participant-sync-status" aria-live="polite"></p>
+    <p class="participant-dialog-footnote"><span aria-hidden="true">⌑</span> Votre progression reste privée et accessible uniquement depuis votre compte.</p>
+  </dialog>
 
   <main>
     <section class="hero section-pad">
@@ -502,6 +522,9 @@
 
   <footer class="site-footer"><div class="container footer-top"><a class="brand footer-brand" href="#accueil"><span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 34 8v10c0 9.3-5.8 15.4-14 19C11.8 33.4 6 27.3 6 18V8l14-5Z" fill="currentColor"/><path d="m12.5 20.2 4.4 4.4 10.9-11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"/></svg></span><span class="brand-name">Fiscale<span>.</span></span></a><p>Une formation proposée par le Cabinet GOBEX.<br />Pour apprendre, structurer et mieux accompagner les missions fiscales.</p><div class="footer-links"><a href="#objectifs">Objectifs</a><a href="#programme">Programme</a><a href="#methode">Méthode</a></div></div><div class="container footer-bottom"><span>© 2024 Fiscale. Formation proposée par le Cabinet GOBEX.</span><span>Conçu pour les équipes qui veulent avancer avec méthode <b>✦</b></span></div></footer>
   <button class="back-to-top" type="button" aria-label="Revenir en haut">↑</button>
-  <script src="script.js"></script>
+  <script type="module" src="/supabase-env.js"></script>
+  <script id="supabase-js-sdk" defer src="/vendor/supabase.js"></script>
+  <script type="module" src="participant-auth.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
