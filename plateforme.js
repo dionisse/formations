@@ -239,7 +239,7 @@ async function loadDashboard(session) {
     syncStatus.textContent = 'Chargement de votre progression…';
     syncStatus.dataset.state = 'pending';
   }
-  if (courseGrid) courseGrid.innerHTML = '';
+  renderCatalogue([], user.id);
 
   const auth = window.fiscaleParticipantAuth;
   const client = auth?.client;
