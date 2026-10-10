@@ -30,6 +30,7 @@ const COURSE_CATALOG = [
     description: 'Un parcours pratique de comptabilité générale, du paramétrage du dossier aux contrôles et éditions, sur un cas SYSCOHADA révisé.',
     sequenceCount: 7,
     durationLabel: '7 séquences · 3 jours proposés',
+    certificatePaymentUrl: 'https://goespay.io/pay/4ZPQ5FQC',
     actionUrl: '/perfecto.html',
     actionLabel: 'Découvrir la formation',
     visualLabel: 'GOBEX · COMPTABILITÉ GÉNÉRALE',
