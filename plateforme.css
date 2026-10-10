@@ -128,16 +128,19 @@ body.participant-platform-page{margin:0;min-width:320px;background:var(--platfor
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
 .course-card-upcoming{border-style:dashed}
-.course-card-upcoming .training-course-visual{background:#f4eedf}
-.course-card-upcoming .training-course-visual:before{background:linear-gradient(130deg,rgba(223,171,75,.16),transparent 58%)}
-.course-card-upcoming .course-visual-grid{border-color:rgba(167,124,49,.2);box-shadow:0 0 0 27px rgba(223,171,75,.045),0 0 0 56px rgba(223,171,75,.035)}
-.course-card-upcoming .course-visual-grid:before,.course-card-upcoming .course-visual-grid:after{border-color:rgba(167,124,49,.15)}
-.course-card-upcoming .course-visual-number{color:rgba(125,89,35,.14)}
-.course-card-upcoming .course-visual-label{color:#866525}
-.course-card-upcoming .course-visual-badge{color:#735d34;background:rgba(255,255,255,.72)}
+.course-card-upcoming .training-course-visual{background:#e8effb}
+.course-card-upcoming .training-course-visual:before{background:linear-gradient(130deg,rgba(48,95,186,.15),transparent 58%)}
+.course-card-upcoming .course-visual-grid{border-color:rgba(48,95,186,.2);box-shadow:0 0 0 27px rgba(223,171,75,.045),0 0 0 56px rgba(223,171,75,.035)}
+.course-card-upcoming .course-visual-grid:before,.course-card-upcoming .course-visual-grid:after{border-color:rgba(48,95,186,.15)}
+.course-card-upcoming .course-visual-number{color:rgba(36,75,145,.15)}
+.course-card-upcoming .course-visual-label{color:#244b91}
+.course-card-upcoming .course-visual-badge{color:#244b91;background:rgba(255,255,255,.72)}
 .course-upcoming-status{min-height:62px;display:flex;align-items:center}
 .course-upcoming-message{display:flex;align-items:flex-start;gap:10px}
 .course-upcoming-message>div{display:grid;gap:4px}
-.course-upcoming-message strong{color:#936d27;font-size:.63rem;letter-spacing:.08em}
+.course-upcoming-message strong{color:#244b91;font-size:.63rem;letter-spacing:.08em}
 .course-upcoming-message small{color:var(--platform-muted);font-size:.59rem;line-height:1.55}
 .course-upcoming-dot{width:7px;height:7px;flex:none;margin-top:4px;border-radius:50%;background:var(--platform-gold);box-shadow:0 0 0 4px var(--platform-gold-soft)}
+.course-card-upcoming .training-course-meta{color:#305fba}
+.course-card-upcoming .training-course-button{background:#305fba}
+.course-card-upcoming .training-course-button:hover{background:#244b91}

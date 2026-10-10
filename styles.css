@@ -279,23 +279,24 @@ img{ -webkit-user-drag:none; user-drag:none }
 @media(max-width:390px){.nav-cta.participant-account-trigger{padding:8px 9px;font-size:.65rem}.nav-wrap{gap:7px}.participant-account-dialog{padding:31px 22px}}
 
 /* Aperçu public d'un nouveau parcours du catalogue GOBEX. */
-.other-training{background:#edf3ef;padding-top:92px;padding-bottom:92px}
+.other-training{background:#eef2fa;padding-top:92px;padding-bottom:92px}
+.other-training .eyebrow{color:#305fba}
 .other-training .section-heading{margin-bottom:31px}
-.other-training-card{display:grid;grid-template-columns:minmax(240px,.72fr) minmax(0,1fr);overflow:hidden;border:1px solid #dfe5e1;border-radius:12px;background:#fff;box-shadow:0 14px 36px rgba(20,55,57,.055)}
-.other-training-art{position:relative;min-height:235px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;overflow:hidden;padding:30px 36px;background:linear-gradient(135deg,#e0efea,#d4e7e0);color:#17574f}
-.other-training-art:before,.other-training-art:after{position:absolute;right:-88px;top:-110px;width:330px;height:330px;border:1px solid rgba(14,142,131,.19);border-radius:50%;content:""}
-.other-training-art:after{right:-38px;top:-60px;width:230px;height:230px;border-color:rgba(223,171,75,.26)}
+.other-training-card{display:grid;grid-template-columns:minmax(240px,.72fr) minmax(0,1fr);overflow:hidden;border:1px solid #dce4f0;border-radius:12px;background:#fff;box-shadow:0 14px 36px rgba(20,35,61,.06)}
+.other-training-art{position:relative;min-height:235px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;overflow:hidden;padding:30px 36px;background:linear-gradient(135deg,#e8effb,#d8e5f8);color:#244b91}
+.other-training-art:before,.other-training-art:after{position:absolute;right:-88px;top:-110px;width:330px;height:330px;border:1px solid rgba(48,95,186,.19);border-radius:50%;content:""}
+.other-training-art:after{right:-38px;top:-60px;width:230px;height:230px;border-color:rgba(228,164,59,.28)}
 .other-training-art>span,.other-training-art>strong,.other-training-art>small{position:relative;z-index:1}
 .other-training-art>span{font-size:.56rem;font-weight:800;letter-spacing:.16em}
 .other-training-art>strong{margin-top:13px;font:800 clamp(2.5rem,5vw,4rem)/1 'Manrope',Arial,sans-serif;letter-spacing:-.09em}
 .other-training-art>small{margin-top:8px;font-size:.61rem;font-weight:700;letter-spacing:.15em}
-.other-training-art>i{position:absolute;z-index:1;right:23px;bottom:11px;color:rgba(23,87,79,.12);font:800 5.5rem/.9 'Manrope',Arial,sans-serif;letter-spacing:-.12em;font-style:normal}
+.other-training-art>i{position:absolute;z-index:1;right:23px;bottom:11px;color:rgba(36,75,145,.12);font:800 5.5rem/.9 'Manrope',Arial,sans-serif;letter-spacing:-.12em;font-style:normal}
 .other-training-copy{align-self:center;padding:31px 38px}
-.other-training-meta{display:flex;flex-wrap:wrap;gap:8px 16px;color:#0e8e83;font-size:.55rem;font-weight:800;letter-spacing:.1em}
-.other-training-meta>span+span{color:#9b782e}
+.other-training-meta{display:flex;flex-wrap:wrap;gap:8px 16px;color:#305fba;font-size:.55rem;font-weight:800;letter-spacing:.1em}
+.other-training-meta>span+span{color:#95691c}
 .other-training-copy h3{margin-top:12px;font:800 clamp(1.35rem,2.5vw,1.8rem)/1.22 'Manrope',Arial,sans-serif;letter-spacing:-.04em}
-.other-training-copy p{max-width:630px;margin-top:10px;color:#687a7e;font-size:.8rem;line-height:1.75}
-.other-training-link{display:inline-flex;align-items:center;gap:9px;margin-top:18px;color:#0e8e83;font-size:.73rem;font-weight:800}
+.other-training-copy p{max-width:630px;margin-top:10px;color:#67748a;font-size:.8rem;line-height:1.75}
+.other-training-link{display:inline-flex;align-items:center;gap:9px;margin-top:18px;color:#305fba;font-size:.73rem;font-weight:800}
 .other-training-link span{font-size:1rem;transition:transform .2s}
 .other-training-link:hover span{transform:translateX(4px)}
 @media(max-width:760px){.other-training{padding-top:70px;padding-bottom:70px}.other-training-card{grid-template-columns:1fr}.other-training-art{min-height:175px;padding:24px 27px}.other-training-copy{padding:25px 27px}}
