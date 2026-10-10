@@ -1,2 +1,7 @@
 node_modules/
+dist/
+storage/
 .env
+.env.*
+!.env.example
+/public/vendor/supabase.js

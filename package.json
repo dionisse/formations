@@ -1,0 +1,24 @@
+{
+  "name": "fiscale",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "AUTH_BYPASS=true node server.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server.mjs",
+    "predev": "node scripts/prepare-supabase-vendor.mjs",
+    "preserver": "node scripts/prepare-supabase-vendor.mjs",
+    "prebuild": "node scripts/prepare-supabase-vendor.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.4.4"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
