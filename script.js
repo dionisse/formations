@@ -677,7 +677,9 @@ if (quizForm7) {
   let cloudSyncInFlight = false;
   let pendingCloudState = null;
   let cloudAccountHydrated = false;
+  let midpointReminderShownInPage = false;
   const progressOwnerStorageKey = 'fiscale-guided-progress-owner-v1';
+  const midpointReminderStorageKey = 'fiscale-certificate-midpoint-reminder-v1';
 
   function scopedStorageKey(key, userId = activeParticipantId) {
     const courseScopedKey = `${key}:${guidedCourseVersion}`;
@@ -1183,6 +1185,44 @@ if (quizForm7) {
     });
   }
 
+  function maybeShowMidpointCertificateReminder() {
+    if (developerMode || midpointReminderShownInPage || completed.size < Math.ceil(guidedGroups.length / 2)) return;
+    if (readPersistentFor(midpointReminderStorageKey) === '1') return;
+    const notice = document.createElement('aside');
+    notice.className = 'certificate-midpoint-toast';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+    const mark = document.createElement('span');
+    mark.className = 'certificate-midpoint-mark';
+    mark.textContent = '1/2';
+    const copy = document.createElement('div');
+    copy.className = 'certificate-midpoint-copy';
+    const title = document.createElement('strong');
+    title.textContent = 'Vous êtes à mi-parcours !';
+    const message = document.createElement('p');
+    message.textContent = 'Continuez jusqu’à la fin des sept séquences. Le règlement du certificat se fera à l’étape finale avec le lien propre à cette formation ; les droits d’accès aux livrables et au Classeur sont gérés séparément.';
+    copy.append(title, message);
+    const paymentLink = document.querySelector('#certificate-payment-link');
+    if (paymentLink?.href) {
+      const link = document.createElement('a');
+      link.href = paymentLink.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Retrouver le lien de règlement du certificat';
+      copy.append(link);
+    }
+    const close = document.createElement('button');
+    close.className = 'certificate-midpoint-close';
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Fermer le rappel de mi-parcours');
+    close.textContent = '×';
+    close.addEventListener('click', () => notice.remove(), { once: true });
+    notice.append(mark, copy, close);
+    document.body.append(notice);
+    writePersistentFor(midpointReminderStorageKey, '1');
+    midpointReminderShownInPage = true;
+  }
+
   function updateBanner() {
     const group = getGroup(currentNumber);
     const complete = developerMode || completed.size === guidedGroups.length;
@@ -1192,6 +1232,7 @@ if (quizForm7) {
     banner.classList.toggle('is-complete', complete);
     if (developerMode) status.textContent = 'Mode développeur actif : toutes les séquences, les contenus et les questionnaires sont consultables sans validation.';
     else if (!complete) status.textContent = `Séquence ${String(currentNumber).padStart(2, '0')} : ${group.title}. Terminez cette étape pour déverrouiller la suivante. Progression enregistrée automatiquement ${activeParticipantId && cloudAccountHydrated ? 'sur cet appareil et dans votre compte participant' : 'sur cet appareil'}.`;
+    maybeShowMidpointCertificateReminder();
   }
 
   function updateCompletion() {
@@ -1400,7 +1441,8 @@ if (quizForm7) {
 
   const profileStorageKey = 'fiscale-certificate-profile-v1';
   const stateStorageKey = 'fiscale-certificate-state-v1';
-  const paymentUrl = 'https://goespay.io/pay/FJK9BGDH';
+  const certificatePaymentLink = document.querySelector('#certificate-payment-link');
+  const paymentUrl = certificatePaymentLink?.href || 'https://goespay.io/pay/FJK9BGDH';
   const whatsappNumber = '2290190895323';
   const mobileNormalOnly = isMobileCourseViewport();
   const developerModeRequested = !mobileNormalOnly && new URLSearchParams(window.location.search).get('mode') === 'developer';

@@ -38,7 +38,7 @@
         <a href="#programme">Programme</a>
         <a href="#methode">Méthode</a>
         <a href="#ressources">Ressources</a>
-        <a href="#autres-formations">Nos formations</a>
+        <a href="#catalogue-formations">Catalogue</a>
         <a href="/connexion.html">Espace participant</a>
       </nav>
       <button class="button button-small button-dark nav-cta participant-account-trigger" id="participant-account-button" type="button" aria-haspopup="dialog" aria-controls="participant-account-dialog"><span id="participant-account-button-label">Connexion</span><span aria-hidden="true">↗</span></button>
@@ -65,6 +65,38 @@
   </dialog>
 
   <main>
+
+    <section class="home-course-catalogue section-pad" id="catalogue-formations" aria-labelledby="home-course-catalogue-title">
+      <div class="container">
+        <div class="section-heading split-heading home-catalogue-heading">
+          <div><div class="eyebrow"><span class="eyebrow-line"></span> CATALOGUE GOBEX</div><h2 id="home-course-catalogue-title">Choisissez votre prochain <em>parcours.</em></h2></div>
+          <p>Commencez par suivre une formation, avancez séquence après séquence, puis réglez le certificat propre au parcours lorsque vous souhaitez le demander.</p>
+        </div>
+        <div class="course-process-steps" aria-label="Déroulement des formations">
+          <article><span>01</span><div><b>Commencer</b><small>Ouvrez le parcours et commencez à apprendre.</small></div></article>
+          <article><span>02</span><div><b>Progresser</b><small>Suivez les séquences et validez vos acquis.</small></div></article>
+          <article><span>03</span><div><b>Obtenir le certificat</b><small>À la fin, réglez avec le lien de cette formation pour demander le certificat. Les droits d’accès aux livrables et au Classeur restent distincts.</small></div></article>
+        </div>
+        <div class="home-course-grid">
+          <article class="home-course-card home-course-fiscal" data-course-version="formation-fiscale-v1">
+            <div class="home-course-card-top"><span class="home-course-icon" aria-hidden="true">%</span><span class="home-course-status">PARCOURS DISPONIBLE</span></div>
+            <div class="home-course-category">FISCALITÉ · 7 SÉQUENCES</div>
+            <h3>Méthodologie fiscale</h3>
+            <p>Un parcours professionnel pour structurer la revue fiscale, les déclarations, la paie, le contrôle et le conseil.</p>
+            <div class="home-course-links"><a class="home-course-start" href="#programme">Commencer la formation <span aria-hidden="true">→</span></a><a class="home-course-payment" href="https://goespay.io/pay/FJK9BGDH" target="_blank" rel="noopener noreferrer">Règlement du certificat ↗</a></div>
+            <small class="home-course-note">Ce règlement concerne uniquement le certificat après le parcours ; l’accès aux livrables et au Classeur est géré séparément. La validation reste effectuée par GOBEX.</small>
+          </article>
+          <article class="home-course-card home-course-perfecto" data-course-version="perfecto-comptabilite-generale-v1">
+            <div class="home-course-card-top"><span class="home-course-icon" aria-hidden="true">▤</span><span class="home-course-status">PROGRAMME EN PRÉPARATION</span></div>
+            <div class="home-course-category">COMPTABILITÉ · PERFECTO</div>
+            <h3>Maîtriser le logiciel de gestion Perfecto</h3>
+            <p>Comptabilité générale, paramétrage du dossier et contrôles pratiques autour d’un cas SYSCOHADA révisé.</p>
+            <div class="home-course-links"><a class="home-course-start" href="/perfecto.html">Découvrir le programme <span aria-hidden="true">→</span></a><span class="home-course-payment is-pending">Lien de règlement à confirmer</span></div>
+            <small class="home-course-note">Dates, ouverture du parcours et lien de règlement seront ajoutés après validation.</small>
+          </article>
+        </div>
+      </div>
+    </section>
     <section class="hero section-pad">
       <div class="container hero-grid">
         <div class="hero-copy">
@@ -134,6 +166,11 @@
             <article class="sequence-card preview-only" data-sequence-card="7"><div class="sequence-main"><div class="sequence-icon icon-s7">✧</div><div><div class="sequence-meta">SÉQUENCE 07 <span class="tag">Clôture</span></div><h3>Formuler une consultation fiscale</h3><p>Passer de la question au conseil : qualifier, analyser, conclure et recommander.</p></div></div><button class="sequence-toggle" aria-label="Déplier la séquence 7" aria-expanded="false">+</button><div class="sequence-details"><div><strong>Vous apprendrez</strong><ul><li>Qualifier la question, le client, son objectif réel et les conflits d’intérêts</li><li>Rechercher les faits, pièces, conventions, CGI, jurisprudence, doctrine et sources complémentaires</li><li>Construire un raisonnement logique, segmenter les questions et comparer les solutions</li><li>Rédiger une consultation claire, relue, signée et suivie</li><li>Classer les consultations, correspondances, déclarations et dossiers d’assistance fiscale</li></ul><a class="lesson-link" href="#sequence-07">Accéder au contenu de la séquence <span>↓</span></a><a class="lesson-link" href="#classement-assistance-fiscale">Voir le classement du dossier <span>↓</span></a><a class="lesson-link" href="#quiz-s7">Passer le QCM de la séquence <span>↓</span></a></div><div class="detail-outcome"><span>Livrable</span><strong>Note de consultation</strong></div></div></article>
           </div>
           <div class="guided-banner" id="guided-banner" aria-live="polite"><div><div class="eyebrow"><span class="eyebrow-line"></span> Parcours guidé</div><h3>Une séquence à la fois, un passage validé à la fois.</h3><p id="guided-status">Consultez l’aperçu de chaque séquence pour savoir ce que vous apprendrez. Le contenu complet se déverrouille progressivement, une séquence validée à la fois.</p></div><div class="guided-progress-box"><div class="guided-progress-label"><strong id="guided-step">01 / 07</strong><span id="guided-stage">En cours</span></div><div class="guided-progress-track"><i id="guided-progress-bar"></i></div><button class="guided-reset" id="guided-reset" type="button">Réinitialiser le parcours</button></div></div>
+        <aside class="certificate-session-reminder" aria-label="Comment obtenir le certificat de cette formation">
+          <span class="certificate-session-icon" aria-hidden="true">✓</span>
+          <div><strong>Suivez le parcours avant de régler le certificat.</strong><p>Validez les sept séquences, puis utilisez le lien de règlement propre à la formation et transmettez le reçu à GOBEX pour validation du certificat. Ce règlement ne donne pas accès aux livrables ou au Classeur.</p></div>
+          <a id="certificate-payment-link" href="https://goespay.io/pay/FJK9BGDH" target="_blank" rel="noopener noreferrer">Lien du certificat fiscal <span aria-hidden="true">↗</span></a>
+        </aside>
         </div>
       </div>
     </section>
@@ -518,18 +555,7 @@
       </div>
     </section>
 
-    <section class="other-training section-pad" id="autres-formations" aria-labelledby="other-training-title">
-      <div class="container">
-        <div class="section-heading split-heading">
-          <div><div class="eyebrow"><span class="eyebrow-line"></span> Le catalogue GOBEX</div><h2 id="other-training-title">Une autre compétence à <em>maîtriser.</em></h2></div>
-          <p>Découvrez les prochains parcours proposés par le Cabinet GOBEX, chacun avec son programme et son espace d’apprentissage dédiés.</p>
-        </div>
-        <article class="other-training-card">
-          <div class="other-training-art" aria-hidden="true"><span>GOBEX · COMPTABILITÉ</span><strong>PERFECTO</strong><small>SYSCOHADA RÉVISÉ</small><i>07</i></div>
-          <div class="other-training-copy"><div class="other-training-meta"><span>COMPTABILITÉ GÉNÉRALE</span><span>PROGRAMME EN PRÉPARATION</span></div><h3>Maîtriser le logiciel de gestion Perfecto</h3><p>Un parcours pratique proposé autour du paramétrage d’un dossier comptable, de la saisie des opérations et du contrôle des états sur un cas pédagogique SYSCOHADA révisé.</p><a class="other-training-link" href="/perfecto.html">Découvrir la présentation <span aria-hidden="true">→</span></a></div>
-        </article>
-      </div>
-    </section>
+
 
     <section class="final-cta section-pad"><div class="container final-cta-inner"><div><div class="eyebrow"><span class="eyebrow-line"></span> Prêt à commencer</div><h2>Donnez une nouvelle <em>dimension</em> à vos missions fiscales.</h2></div><a class="button button-primary" href="#programme">Commencer le parcours <span>→</span></a></div></section>
   </main>

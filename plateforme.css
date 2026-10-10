@@ -144,3 +144,20 @@ body.participant-platform-page{margin:0;min-width:320px;background:var(--platfor
 .course-card-upcoming .training-course-meta{color:#305fba}
 .course-card-upcoming .training-course-button{background:#305fba}
 .course-card-upcoming .training-course-button:hover{background:#244b91}
+
+.platform-course-process{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:22px;align-items:center;margin:24px 0 17px;padding:21px 23px;border:1px solid #cfe8e2;border-left:4px solid var(--platform-teal);border-radius:10px;background:#f1f8f6}
+.platform-process-label{display:block;margin-bottom:6px;color:var(--platform-teal-dark);font-size:.54rem;font-weight:800;letter-spacing:.14em}
+.platform-course-process strong{display:block;color:var(--platform-ink);font:800 .9rem 'Manrope',Arial,sans-serif}
+.platform-course-process p{margin-top:6px;color:var(--platform-muted);font-size:.67rem;line-height:1.6}
+.platform-course-process ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:0;padding:0;list-style:none}
+.platform-course-process li{display:grid;gap:4px;padding:10px 11px;border:1px solid #dcebe7;border-radius:7px;background:rgba(255,255,255,.75)}
+.platform-course-process li b{color:var(--platform-ink);font-size:.64rem}
+.platform-course-process li span{color:var(--platform-muted);font-size:.55rem;line-height:1.45}
+.course-certificate-note{margin-top:14px;padding-top:12px;border-top:1px solid var(--platform-line)}
+.course-certificate-note p{color:var(--platform-muted);font-size:.61rem;line-height:1.55}
+.course-certificate-payment{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--platform-teal-dark);font-size:.61rem;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.course-certificate-payment:hover{color:var(--platform-teal)}
+.course-certificate-payment-pending{color:var(--platform-muted);font-weight:600;text-decoration:none}
+.course-card-upcoming .course-certificate-payment{color:#244b91}
+.course-card-upcoming .course-certificate-payment-pending{color:var(--platform-muted)}
+@media(max-width:700px){.platform-course-process{grid-template-columns:1fr;gap:14px;margin-top:18px;padding:17px}.platform-course-process ol{gap:6px}.platform-course-process li{padding:9px 8px}.platform-course-process li span{font-size:.51rem}.course-certificate-note{margin-top:12px;padding-top:10px}}

@@ -7,6 +7,7 @@ const COURSE_CATALOG = [
     description: 'Un itinéraire professionnel pour structurer la revue fiscale, les déclarations, la paie, le contrôle et le conseil.',
     sequenceCount: 7,
     durationLabel: '7 séquences',
+    certificatePaymentUrl: 'https://goespay.io/pay/FJK9BGDH',
     actionUrl: '/#programme',
     actionLabel: 'Reprendre la formation',
     visualLabel: 'CABINET GOBEX · SÉMINAIRE',
@@ -182,6 +183,9 @@ function renderCourseCard(course, progress) {
     ? `<div class="course-progress-top"><span>${label}</span><strong>${percentage}%</strong></div>
        <div class="course-progress-track" role="progressbar" aria-label="Progression de ${title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}"><div class="course-progress-bar" style="width:${percentage}%"></div></div>`
     : `<div class="course-upcoming-message"><span class="course-upcoming-dot"></span><div><strong>${label}</strong><small>Consultez l’aperçu du programme et les prochaines informations.</small></div></div>`;
+  const paymentContent = course.certificatePaymentUrl
+    ? `<a class="course-certificate-payment" href="${safeText(course.certificatePaymentUrl)}" target="_blank" rel="noopener noreferrer">Lien de règlement du certificat <span aria-hidden="true">↗</span></a>`
+    : `<span class="course-certificate-payment course-certificate-payment-pending">Lien de règlement propre à ce parcours à confirmer</span>`;
 
   return `<article class="training-course-card ${isAvailable ? '' : 'course-card-upcoming'}" data-course-version="${safeText(course.version)}">
     <div class="training-course-visual" aria-hidden="true">
@@ -194,6 +198,7 @@ function renderCourseCard(course, progress) {
       <p class="training-course-description">${description}</p>
       <div class="course-progress ${isAvailable ? '' : 'course-upcoming-status'}">${progressContent}</div>
       <div class="training-course-footer"><span class="course-sequence-count">${duration}</span><a class="training-course-button" href="${actionUrl}">${actionLabel}<span aria-hidden="true">→</span></a></div>
+      <div class="course-certificate-note"><p>Pour obtenir le certificat : suivez d’abord le parcours, puis utilisez le lien propre à cette formation et transmettez le reçu à GOBEX.</p>${paymentContent}</div>
     </div>
   </article>`;
 }
