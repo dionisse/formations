@@ -20,6 +20,31 @@ const COURSE_CATALOG = [
       'Accompagner un contrôle fiscal',
       'Formuler une consultation fiscale'
     ]
+  },
+  {
+    version: 'perfecto-comptabilite-generale-v1',
+    title: 'Maîtriser le logiciel de gestion Perfecto',
+    category: 'COMPTABILITÉ',
+    format: 'NOUVEAU PARCOURS',
+    description: 'Un parcours pratique de comptabilité générale, du paramétrage du dossier aux contrôles et éditions, sur un cas SYSCOHADA révisé.',
+    sequenceCount: 7,
+    durationLabel: '7 séquences · 3 jours proposés',
+    actionUrl: '/perfecto.html',
+    actionLabel: 'Découvrir la formation',
+    visualLabel: 'GOBEX · COMPTABILITÉ GÉNÉRALE',
+    visualNumber: '07',
+    availabilityLabel: 'PARCOURS EN PRÉPARATION',
+    available: false,
+    catalogVisible: true,
+    sequenceLabels: [
+      'Prendre en main Perfecto',
+      'Créer et paramétrer le dossier',
+      'Préparer les données de base',
+      'Saisir les opérations courantes',
+      'Traiter immobilisations et stocks',
+      'Contrôler et rapprocher',
+      'Éditer les états et valider le cas'
+    ]
   }
 ];
 
@@ -141,20 +166,24 @@ function progressLabel(progress, course) {
 }
 
 function renderCourseCard(course, progress) {
-  const completedCount = progress?.completed.length || 0;
-  const percentage = courseProgressPercent(progress, course.sequenceCount);
+  const isAvailable = course.available !== false;
+  const percentage = isAvailable ? courseProgressPercent(progress, course.sequenceCount) : 0;
   const title = safeText(course.title);
   const category = safeText(course.category);
   const format = safeText(course.format);
   const description = safeText(course.description);
-  const label = safeText(progressLabel(progress, course));
+  const label = safeText(isAvailable ? progressLabel(progress, course) : course.availabilityLabel || 'À venir');
   const duration = safeText(course.durationLabel);
   const visualLabel = safeText(course.visualLabel);
   const visualNumber = safeText(course.visualNumber);
-  const actionLabel = safeText(hasStarted(progress) ? course.actionLabel : 'Commencer la formation');
+  const actionLabel = safeText(isAvailable ? (hasStarted(progress) ? course.actionLabel : 'Commencer la formation') : course.actionLabel);
   const actionUrl = safeText(course.actionUrl);
+  const progressContent = isAvailable
+    ? `<div class="course-progress-top"><span>${label}</span><strong>${percentage}%</strong></div>
+       <div class="course-progress-track" role="progressbar" aria-label="Progression de ${title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}"><div class="course-progress-bar" style="width:${percentage}%"></div></div>`
+    : `<div class="course-upcoming-message"><span class="course-upcoming-dot"></span><div><strong>${label}</strong><small>Consultez l’aperçu du programme et les prochaines informations.</small></div></div>`;
 
-  return `<article class="training-course-card" data-course-version="${safeText(course.version)}">
+  return `<article class="training-course-card ${isAvailable ? '' : 'course-card-upcoming'}" data-course-version="${safeText(course.version)}">
     <div class="training-course-visual" aria-hidden="true">
       <span class="course-visual-grid"></span><span class="course-visual-number">${visualNumber}</span>
       <span class="course-visual-badge">${format}</span><span class="course-visual-label">${visualLabel}</span>
@@ -163,10 +192,7 @@ function renderCourseCard(course, progress) {
       <div class="training-course-meta"><span>${category}</span><i></i><span>${format}</span></div>
       <h3>${title}</h3>
       <p class="training-course-description">${description}</p>
-      <div class="course-progress">
-        <div class="course-progress-top"><span>${label}</span><strong>${percentage}%</strong></div>
-        <div class="course-progress-track" role="progressbar" aria-label="Progression de ${title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}"><div class="course-progress-bar" style="width:${percentage}%"></div></div>
-      </div>
+      <div class="course-progress ${isAvailable ? '' : 'course-upcoming-status'}">${progressContent}</div>
       <div class="training-course-footer"><span class="course-sequence-count">${duration}</span><a class="training-course-button" href="${actionUrl}">${actionLabel}<span aria-hidden="true">→</span></a></div>
     </div>
   </article>`;
@@ -174,11 +200,11 @@ function renderCourseCard(course, progress) {
 
 function renderCatalogue(rows, userId) {
   const items = COURSE_CATALOG
-    .filter((course) => course.available !== false)
-    .map((course) => ({ course, progress: progressForRow(course, rows, userId) }));
-  const startedCount = items.filter(({ progress }) => hasStarted(progress)).length;
+    .filter((course) => course.catalogVisible !== false)
+    .map((course) => ({ course, progress: course.available === false ? null : progressForRow(course, rows, userId) }));
+  const startedCount = items.filter(({ course, progress }) => course.available !== false && hasStarted(progress)).length;
   if (trainingCount) trainingCount.textContent = String(items.length).padStart(2, '0');
-  if (trainingLabel) trainingLabel.textContent = items.length === 1 ? 'formation disponible' : 'formations disponibles';
+  if (trainingLabel) trainingLabel.textContent = items.length === 1 ? 'formation au catalogue' : 'formations au catalogue';
   if (activeCount) activeCount.textContent = String(startedCount).padStart(2, '0');
   if (catalogueCount) catalogueCount.textContent = `${String(items.length).padStart(2, '0')} PARCOURS`;
   if (courseGrid) {
@@ -234,7 +260,7 @@ async function loadDashboard(session) {
   renderCatalogue(rows, user.id);
   if (loadStatus) loadStatus.textContent = '';
 
-  const hasLocalProgress = COURSE_CATALOG.some((course) => readParticipantLocalProgress(course, user.id));
+  const hasLocalProgress = COURSE_CATALOG.some((course) => course.available !== false && readParticipantLocalProgress(course, user.id));
   if (syncStatus) {
     if (remoteError) {
       syncStatus.textContent = hasLocalProgress
