@@ -32,7 +32,13 @@ const trainingWhatsappNumber = '2290190895323';
 let dossier = null;
 let currentFolderId = '01';
 let sessionLoadVersion = 0;
+/* Le classeur utilise ses propres fichiers locaux en développement, et le Google Drive
+   du participant en ligne (dossier.filesSource === 'drive'). */
+let filesSource = 'server';
 const seenFolders = new Set();
+const drivePendingMessage = 'La gestion des fichiers dans votre Google Drive est en cours d’installation. Le contenu du dossier reste consultable ci-dessous.';
+const driveStore = () => window.fiscaleDrive || null;
+const usingParticipantDrive = () => filesSource === 'drive';
 
 async function authHeaders(extra = {}) {
   const auth = window.fiscaleParticipantAuth;
@@ -59,7 +65,11 @@ const request = async (url, options = {}) => {
     error.status = response.status;
     error.code = payload.code || '';
     error.payload = payload;
-    if (response.status === 404 || !contentType.includes('application/json')) error.message = 'Cette page n’est pas reliée au serveur sécurisé. Lancez « npm run server » puis ouvrez http://localhost:4173.';
+    if (response.status === 404 || !contentType.includes('application/json')) {
+      error.message = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'Cette page n’est pas reliée au serveur sécurisé. Lancez « npm run server » puis ouvrez http://localhost:4173.'
+        : 'Le service du classeur ne répond pas. Rechargez la page ou réessayez dans quelques instants.';
+    }
     throw error;
   }
   return payload;
@@ -88,6 +98,12 @@ async function uploadRequest(url, file, method = 'POST') {
 }
 
 async function openProtectedFile(fileId) {
+  if (usingParticipantDrive() && driveStore()) {
+    setUploadStatus('Ouverture du fichier depuis votre Google Drive…');
+    try { await driveStore().open(fileId); }
+    catch (error) { setUploadStatus(error.message, true); }
+    return;
+  }
   const viewer = window.open('about:blank', '_blank');
   if (!viewer) {
     setUploadStatus('Autorisez les fenêtres contextuelles pour ouvrir ce fichier.', true);
@@ -258,12 +274,35 @@ function setUploadStatus(message, error = false) {
   status.textContent = message;
   status.classList.toggle('is-error', error);
 }
+async function refreshDriveFiles() {
+  const store = driveStore();
+  if (!store) return;
+  try {
+    dossier.files = await store.list();
+    renderFolder(getFolder(currentFolderId));
+  } catch (error) {
+    setUploadStatus(error.message, true);
+  }
+}
 async function reloadCurrentFolder() {
+  if (usingParticipantDrive() && driveStore()) {
+    await refreshDriveFiles();
+    return;
+  }
   dossier = await request('/api/dossier');
   renderFolder(getFolder(currentFolderId));
 }
 async function addFiles(folder, files) {
   if (!files.length) return;
+  if (usingParticipantDrive()) {
+    if (!driveStore()) { setUploadStatus(drivePendingMessage, true); return; }
+    setUploadStatus(`Envoi de ${files.length} fichier${files.length > 1 ? 's' : ''} dans votre Google Drive…`);
+    try {
+      for (const file of files) await driveStore().upload(folder.id, file);
+      await reloadCurrentFolder();
+    } catch (error) { setUploadStatus(error.message, true); }
+    return;
+  }
   setUploadStatus(`Envoi de ${files.length} fichier${files.length > 1 ? 's' : ''}…`);
   try {
     for (const file of files) await uploadRequest(`/api/files?folderId=${encodeURIComponent(folder.id)}`, file);
@@ -271,6 +310,13 @@ async function addFiles(folder, files) {
   } catch (error) { setUploadStatus(error.message, true); }
 }
 async function replaceFile(fileId, file) {
+  if (usingParticipantDrive()) {
+    if (!driveStore()) { setUploadStatus(drivePendingMessage, true); return; }
+    setUploadStatus('Remplacement du fichier dans votre Google Drive…');
+    try { await driveStore().replace(fileId, file); await reloadCurrentFolder(); }
+    catch (error) { setUploadStatus(error.message, true); }
+    return;
+  }
   setUploadStatus('Remplacement du fichier…');
   try { await uploadRequest(`/api/files/${encodeURIComponent(fileId)}`, file, 'PUT'); await reloadCurrentFolder(); }
   catch (error) { setUploadStatus(error.message, true); }
@@ -299,11 +345,23 @@ function bindFolderActions(folder) {
     if (button.dataset.fileAction === 'rename') {
       const name = window.prompt('Nouveau nom du fichier', file.name);
       if (!name || name.trim() === file.name) return;
+      if (usingParticipantDrive()) {
+        if (!driveStore()) { setUploadStatus(drivePendingMessage, true); return; }
+        try { await driveStore().rename(file.id, name); await reloadCurrentFolder(); }
+        catch (error) { setUploadStatus(error.message, true); }
+        return;
+      }
       try { await request(`/api/files/${encodeURIComponent(file.id)}`, { method: 'PATCH', body: JSON.stringify({ name }) }); await reloadCurrentFolder(); }
       catch (error) { setUploadStatus(error.message, true); }
       return;
     }
     if (button.dataset.fileAction === 'delete' && window.confirm(`Supprimer « ${file.name} » du dossier ?`)) {
+      if (usingParticipantDrive()) {
+        if (!driveStore()) { setUploadStatus(drivePendingMessage, true); return; }
+        try { await driveStore().remove(file.id); await reloadCurrentFolder(); }
+        catch (error) { setUploadStatus(error.message, true); }
+        return;
+      }
       try { await request(`/api/files/${encodeURIComponent(file.id)}`, { method: 'DELETE' }); await reloadCurrentFolder(); }
       catch (error) { setUploadStatus(error.message, true); }
     }
@@ -331,8 +389,14 @@ async function openSession() {
     const result = await request('/api/dossier');
     if (version !== sessionLoadVersion) return;
     dossier = result;
+    filesSource = result.filesSource === 'drive' ? 'drive' : 'server';
+    document.documentElement.dataset.filesSource = filesSource;
     showApp(user);
     renderFolder(getFolder(currentFolderId));
+    if (filesSource === 'drive') {
+      driveStore()?.syncBanner?.();
+      refreshDriveFiles();
+    }
   } catch (error) {
     if (version !== sessionLoadVersion) return;
     if (error.status === 401) showLogin();
