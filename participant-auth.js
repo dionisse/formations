@@ -65,6 +65,7 @@
 
   function notifySession(session) {
     currentSession = session || null;
+    publishDriveToken(currentSession);
     renderSession(currentSession);
     window.setTimeout(() => {
       listeners.forEach((listener) => {
@@ -145,6 +146,10 @@
 
   const ready = initialize();
 
+  /* La portée drive.file limite l'application aux fichiers qu'elle crée elle-même
+     dans le Drive du participant : elle n'a jamais accès au reste du Drive. */
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
   async function signInWithGoogle(redirectTo = `${window.location.origin}/connexion.html`) {
     await ready;
     if (!supabaseClient) return { error: new Error('Supabase n’est pas encore configuré.') };
@@ -152,10 +157,38 @@
       provider: 'google',
       options: {
         redirectTo,
-        scopes: 'openid email profile',
-        queryParams: { prompt: 'select_account' }
+        scopes: `openid email profile ${DRIVE_SCOPE}`,
+        /* access_type=offline + prompt=consent : Google renvoie un jeton hors ligne,
+           seul moyen de retrouver le dossier du participant aux visites suivantes. */
+        queryParams: { prompt: 'select_account consent', access_type: 'offline', include_granted_scopes: 'true' }
       }
     });
+  }
+
+  /* Le jeton hors ligne n'est visible qu'à cet instant : il est confié à /api/drive-token,
+     qui le conserve dans une ligne protégée par RLS et l'échange ensuite contre des accès d'une heure. */
+  let publishedRefreshToken = '';
+  async function publishDriveToken(session) {
+    const refreshToken = String(session?.provider_refresh_token || '').trim();
+    const accessToken = session?.access_token;
+    if (!refreshToken || !accessToken || refreshToken === publishedRefreshToken) return;
+    publishedRefreshToken = refreshToken;
+    try {
+      const response = await fetch('/api/drive-token', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ refreshToken, googleEmail: session?.user?.email || '', scope: DRIVE_SCOPE })
+      });
+      if (!response.ok && response.status !== 404) {
+        const payload = await response.json().catch(() => ({}));
+        console.error('Drive link storage failed:', payload.error || response.status);
+        publishedRefreshToken = '';
+      }
+    } catch (error) {
+      publishedRefreshToken = '';
+      console.error('Drive link storage failed:', error.message);
+    }
   }
 
   async function signOut() {
@@ -188,6 +221,8 @@
     get client() { return supabaseClient; },
     get session() { return currentSession; },
     get configured() { return Boolean(supabaseClient); },
+    driveScope: DRIVE_SCOPE,
+    publishDriveToken,
     subscribe(listener) {
       if (typeof listener !== 'function') return () => {};
       listeners.add(listener);

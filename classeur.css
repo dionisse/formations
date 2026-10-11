@@ -44,3 +44,11 @@ img{ -webkit-user-drag:none; user-drag:none }
 .access-logout{margin-top:10px;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:.62rem;text-decoration:underline;text-underline-offset:3px}
 .admin-header-link{padding:7px 9px;border:1px solid #d5e8e2;border-radius:4px;color:var(--teal);font-size:.6rem;font-weight:700}
 .admin-header-link:hover{background:var(--teal-soft)}
+.drive-banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px;padding:12px 14px;border:1px solid #cfe3dd;border-radius:6px;background:var(--teal-soft)}
+.drive-banner[hidden]{display:none}
+.drive-banner-text{display:grid;gap:3px;min-width:240px}
+.drive-banner-text strong{color:var(--ink);font-size:.72rem}
+.drive-banner-text span{color:var(--muted);font-size:.64rem;line-height:1.45}
+.drive-banner button{padding:8px 12px;border:0;border-radius:4px;background:var(--teal);color:#fff;font-size:.64rem;font-weight:700;cursor:pointer}
+.drive-banner button:hover{filter:brightness(1.06)}
+
