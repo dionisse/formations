@@ -103,13 +103,60 @@ Le classeur est une interface de classement et d’accès aux fichiers du dossie
 
 Un navigateur ne transmet pas le chemin absolu du fichier original présent sur l’ordinateur et ne peut pas ouvrir librement un chemin `file://` pour des raisons de sécurité. Le fonctionnement retenu conserve donc une copie locale gérée par le serveur et l’ouvre dans le navigateur ; selon le type de fichier, le navigateur l’affiche ou le télécharge avec l’application associée.
 
+## Classeur en ligne : fonctions serverless
+
+Le classeur fonctionne en ligne sur Vercel sans stockage de données : le contenu pédagogique payant est **embarqué dans la fonction** `api/dossier` et n’est servi qu’après vérification de l’accès côté serveur. Le dossier `api/` contient les routes portées depuis `server.mjs` :
+
+- `GET /api/public-config` — URL et clé publique Supabase ;
+- `GET /api/session` — compte connecté et statut d’accès ;
+- `GET /api/entitlements` et `POST /api/entitlements/request` — consulter ou demander son accès ;
+- `GET /api/dossier` — contenu du dossier après confirmation du règlement ;
+- `GET /api/drive-token` — état de la liaison Google Drive du participant ;
+- `POST /api/drive-token` — accès temporaire (1 heure) au Drive du participant, et enregistrement du jeton hors ligne ;
+- `DELETE /api/drive-token` — retrait de la liaison.
+
+`api/_lib/shared.mjs` reprend la vérification du jeton Supabase et le contrôle des droits par formation ; `api/_lib/dossier-data.mjs` est généré depuis `private/dossier-data.json` par `scripts/prepare-serverless-data.mjs` (appelé automatiquement avant `npm run dev`, `npm run server` et `npm run build`).
+
+En ligne, les variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` doivent être définies dans les réglages du projet Vercel, comme pour le build du site.
+
+**Ce qui reste au serveur Node** : `server.mjs` conserve l’ensemble des routes, y compris les certificats et l’administration des paiements. Les fichiers ne passent plus par lui en ligne : ils vont dans le Google Drive du participant (voir ci-dessous), ce qui supprime la limite de 4,5 Mo par requête des fonctions Vercel.
+
+## Fichiers du participant : Google Drive
+
+Aucun document n’est hébergé sur le serveur : les pièces du dossier sont déposées **dans le Google Drive du participant**, dans un dossier « Fiscale — Dossier » créé à la première utilisation. L’application demande la portée `drive.file`, qui ne donne accès qu’aux fichiers qu’elle crée elle-même — jamais au reste du Drive. Comme le téléversement part du navigateur vers Google, ni Vercel ni Supabase ne transportent les documents.
+
+Fonctionnement :
+
+1. à la connexion, `participant-auth.js` demande `access_type=offline` et `prompt=consent`, puis confie le jeton hors ligne à `POST /api/drive-token` ;
+2. ce jeton est conservé dans la table `participant_drive_tokens`, protégée par RLS (chaque participant n’accède qu’à sa propre ligne) ; le secret client Google, lui, ne quitte jamais le serveur ;
+3. `drive.js` échange ce jeton contre un accès d’une heure, puis écrit et lit directement dans le Drive : envoi, remplacement, renommage, ouverture et suppression, ainsi qu’un sommaire lisible `dossier-index.json` ;
+4. `classeur.js` bascule automatiquement : serveur local (`npm run server`) ou Drive du participant en ligne, selon `filesSource` renvoyé par `/api/dossier`.
+
+### Mise en service (côté Google et Supabase)
+
+1. **Google Cloud → Écran de consentement OAuth** : ajouter la portée `https://www.googleapis.com/auth/drive.file`, puis **publier l’application**. En mode « Test », Google expire les autorisations au bout de 7 jours ; une application non vérifiée reste limitée à 100 utilisateurs, ce qui suffit pour démarrer.
+2. **Supabase** : appliquer la migration `supabase/migrations/20261011120000_participant_drive_tokens.sql`.
+3. **Vercel → Réglages → Variables d’environnement** : ajouter `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` (ce sont les identifiants du client OAuth déjà utilisé par Supabase Auth).
+
+Les participants qui s’étaient connectés avant cette mise en service doivent se reconnecter une fois : le classeur affiche un bandeau « Relier mon Google Drive » dans ce cas.
+
 ## Vérifier et construire
+
+Aucun déploiement n’est nécessaire pour contrôler l’ensemble :
+
+```bash
+npm test
+```
+
+- `scripts/test-api-functions.mjs` exécute chaque fonction serverless (refus sans jeton `401`, `402` sans règlement, méthode refusée `405`, réponse complète en mode développement) ;
+- `scripts/test-drive-module.mjs` exécute `drive.js` dans un contexte isolé face à un faux Google Drive et vérifie le cycle complet : création du dossier, envoi, sommaire, remplacement, renommage, ouverture et suppression.
+
 
 ```bash
 npm run build
 ```
 
-Le build Vite inclut les pages d’accueil, de connexion participant et d’administration. Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
+Le build Vite inclut les pages d’accueil, de connexion participant, d’administration, de découverte Perfecto et le classeur (`classeur.html`). Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
 
 ## Contenu du dépôt
 
@@ -128,6 +175,11 @@ Le build Vite inclut les pages d’accueil, de connexion participant et d’admi
 - `classeur.css` — styles de la connexion, de l’état de paiement et de la bibliothèque de fichiers.
 - `classeur.js` — session Supabase, demande d’accès, recherche, navigation et rendu du classeur.
 - `server.mjs` — serveur Node natif, vérification des JWT Supabase et contrôle des droits par formation.
+- `api/` — fonctions serverless de Vercel (session, accès, dossier embarqué, liaison Google Drive) et leur socle `api/_lib/`.
+- `drive.js` — fichiers du classeur dans le Google Drive du participant.
+- `scripts/prepare-serverless-data.mjs` — génération du dossier embarqué pour les fonctions.
+- `scripts/test-api-functions.mjs` — banc d’essai des fonctions serverless.
+- `scripts/test-drive-module.mjs` — banc d’essai du module Drive face à un faux Google Drive.
 - `private/dossier-data.json` — 24 rubriques et 7 sous-rubriques pédagogiques, servies uniquement après validation côté serveur.
 - `storage/` — index, certificats et contenu des fichiers de dossiers ; créé automatiquement et ignoré par Git.
 - `scripts/` — scripts utilitaires conservés pour les opérations de maintenance.

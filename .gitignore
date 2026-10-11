@@ -5,3 +5,5 @@ storage/
 .env.*
 !.env.example
 /public/vendor/supabase.js
+# Dossier pédagogique embarqué, régénéré par scripts/prepare-serverless-data.mjs
+api/_lib/dossier-data.mjs
