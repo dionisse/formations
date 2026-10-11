@@ -8,9 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.mjs",
-    "predev": "node scripts/prepare-supabase-vendor.mjs",
-    "preserver": "node scripts/prepare-supabase-vendor.mjs",
-    "prebuild": "node scripts/prepare-supabase-vendor.mjs"
+    "predev": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
+    "preserver": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
+    "prebuild": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
+    "test": "node scripts/prepare-serverless-data.mjs && node scripts/test-api-functions.mjs && node scripts/test-drive-module.mjs"
   },
   "devDependencies": {
     "vite": "^6.4.4"
