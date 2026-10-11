@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="course-gated">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -13,6 +13,20 @@
   <meta property="og:image" content="https://bolt.new/static/og_default.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
+  <script>
+    /* L'accueil ouvre le parcours d'une formation seulement après son choix dans le catalogue. */
+    (function () {
+      var reveal = false;
+      try {
+        var selected = JSON.parse(window.localStorage.getItem('fiscale-home-selected-courses-v1') || '[]');
+        reveal = Array.isArray(selected) && selected.indexOf('formation-fiscale-v1') > -1;
+      } catch (error) { reveal = false; }
+      var hash = (window.location.hash || '').replace('#', '');
+      if (/^[a-z0-9][a-z0-9-]*$/i.test(hash) && hash !== 'accueil' && hash !== 'catalogue-formations') reveal = true;
+      if (reveal) document.documentElement.classList.remove('course-gated');
+    })();
+  </script>
+  <noscript><style>html.course-gated .course-stage{display:block!important}html.course-gated .home-catalogue-choice{display:none!important}</style></noscript>
 </head>
 <body>
   <div class="announcement">
@@ -77,13 +91,14 @@
           <article><span>02</span><div><b>Progresser</b><small>Suivez les séquences et validez vos acquis.</small></div></article>
           <article><span>03</span><div><b>Obtenir le certificat</b><small>À la fin, réglez avec le lien de cette formation pour demander le certificat. Les droits d’accès aux livrables et au Classeur restent distincts.</small></div></article>
         </div>
+        <p class="home-catalogue-choice" id="catalogue-choice-hint"><span aria-hidden="true">⌕</span>Choisissez une formation pour ouvrir son parcours. Vous pouvez en suivre plusieurs : le catalogue reste accessible à tout moment.</p>
         <div class="home-course-grid">
           <article class="home-course-card home-course-fiscal" data-course-version="formation-fiscale-v1">
             <div class="home-course-card-top"><span class="home-course-icon" aria-hidden="true">%</span><span class="home-course-status">PARCOURS DISPONIBLE</span></div>
             <div class="home-course-category">FISCALITÉ · 7 SÉQUENCES</div>
             <h3>Méthodologie fiscale</h3>
             <p>Un parcours professionnel pour structurer la revue fiscale, les déclarations, la paie, le contrôle et le conseil.</p>
-            <div class="home-course-links"><a class="home-course-start" href="#programme">Commencer la formation <span aria-hidden="true">→</span></a><a class="home-course-payment" href="https://goespay.io/pay/FJK9BGDH" target="_blank" rel="noopener noreferrer">Règlement du certificat ↗</a></div>
+            <div class="home-course-links"><a class="home-course-start" data-course-select="formation-fiscale-v1" href="#programme"><span data-course-select-label>Commencer la formation</span> <span aria-hidden="true">→</span></a><a class="home-course-payment" href="https://goespay.io/pay/FJK9BGDH" target="_blank" rel="noopener noreferrer">Règlement du certificat ↗</a></div>
             <small class="home-course-note">Ce règlement concerne uniquement le certificat après le parcours ; l’accès aux livrables et au Classeur est géré séparément. La validation reste effectuée par GOBEX.</small>
           </article>
           <article class="home-course-card home-course-perfecto" data-course-version="perfecto-comptabilite-generale-v1">
@@ -97,6 +112,8 @@
         </div>
       </div>
     </section>
+
+    <div class="course-stage" id="fiscal-course-stage" data-course-version="formation-fiscale-v1">
     <section class="hero section-pad">
       <div class="container hero-grid">
         <div class="hero-copy">
@@ -558,6 +575,7 @@
 
 
     <section class="final-cta section-pad"><div class="container final-cta-inner"><div><div class="eyebrow"><span class="eyebrow-line"></span> Prêt à commencer</div><h2>Donnez une nouvelle <em>dimension</em> à vos missions fiscales.</h2></div><a class="button button-primary" href="#programme">Commencer le parcours <span>→</span></a></div></section>
+    </div>
   </main>
 
   <footer class="site-footer"><div class="container footer-top"><a class="brand footer-brand" href="#accueil"><span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 34 8v10c0 9.3-5.8 15.4-14 19C11.8 33.4 6 27.3 6 18V8l14-5Z" fill="currentColor"/><path d="m12.5 20.2 4.4 4.4 10.9-11" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"/></svg></span><span class="brand-name">Fiscale<span>.</span></span></a><p>Une formation proposée par le Cabinet GOBEX.<br />Pour apprendre, structurer et mieux accompagner les missions fiscales.</p><div class="footer-links"><a href="#objectifs">Objectifs</a><a href="#programme">Programme</a><a href="#methode">Méthode</a></div></div><div class="container footer-bottom"><span>© 2024 Fiscale. Formation proposée par le Cabinet GOBEX.</span><span>Conçu pour les équipes qui veulent avancer avec méthode <b>✦</b></span></div></footer>

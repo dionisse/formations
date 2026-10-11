@@ -132,6 +132,12 @@ Le build Vite inclut les pages d’accueil, de connexion participant et d’admi
 - `storage/` — index, certificats et contenu des fichiers de dossiers ; créé automatiquement et ignoré par Git.
 - `scripts/` — scripts utilitaires conservés pour les opérations de maintenance.
 
+### Choix de la formation sur la page d’accueil
+
+La page d’accueil s’ouvre sur le catalogue GOBEX : le parcours d’une formation ne s’affiche qu’après son choix par le participant, connecté ou non, car un participant peut suivre plusieurs formations. Le choix est mémorisé par navigateur (`fiscale-home-selected-courses-v1`) et le catalogue reste accessible à tout moment pour changer de formation ; la carte concernée indique alors « Reprendre la formation ».
+
+Les liens directs vers le contenu d’un parcours — `/#programme`, `/#sequence-03`, les ancres du programme ou de l’évaluation — ouvrent d’eux-mêmes la formation concernée : l’espace participant, le classeur et la navigation continuent donc de fonctionner sans détour. Sans JavaScript, la page affiche le parcours complet comme auparavant.
+
 ### Mode développeur du parcours pédagogique
 
 Le mode développeur du parcours est réservé à l’administrateur connecté avec le compte Google autorisé ; sur ordinateur, `?mode=developer` ne fait que demander l’affichage du mode après vérification serveur. Une URL ou une valeur `localStorage` ne suffit pas. Sur mobile, le mode reste désactivé même avec ce paramètre ; si la fenêtre devient mobile ou passe en paysage pendant une session développeur, l’accès est coupé pour cette session. L’administration des paiements se fait séparément dans `/admin.html`.
