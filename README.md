@@ -113,7 +113,11 @@ Le classeur fonctionne en ligne sur Vercel sans stockage de données : le conten
 - `GET /api/dossier` — contenu du dossier après confirmation du règlement ;
 - `GET /api/drive-token` — état de la liaison Google Drive du participant ;
 - `POST /api/drive-token` — accès temporaire (1 heure) au Drive du participant, et enregistrement du jeton hors ligne ;
-- `DELETE /api/drive-token` — retrait de la liaison.
+- `DELETE /api/drive-token` — retrait de la liaison ;
+- `GET /api/admin/entitlements` et `PATCH /api/admin/entitlements/:id` — lister et décider les demandes de règlement (administrateur uniquement) ;
+- `GET /api/admin/entitlement-events` — journal des décisions (administrateur uniquement).
+
+Avec ces routes, le tableau de bord `/admin.html` fonctionne aussi en ligne : la connexion Google de l’administrateur (`godwingobex@gmail.com`) suffit à confirmer un paiement, à remettre une demande en attente ou à la révoquer. Les certificats, eux, restent servis par le serveur Node (`npm run server`).
 
 `api/_lib/shared.mjs` reprend la vérification du jeton Supabase et le contrôle des droits par formation ; `api/_lib/dossier-data.mjs` est généré depuis `private/dossier-data.json` par `scripts/prepare-serverless-data.mjs` (appelé automatiquement avant `npm run dev`, `npm run server` et `npm run build`).
 

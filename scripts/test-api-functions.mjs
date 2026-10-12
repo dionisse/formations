@@ -8,6 +8,9 @@ import entitlementRequestHandler from '../api/entitlements/request.js';
 import dossierHandler from '../api/dossier.js';
 import publicConfigHandler from '../api/public-config.js';
 import driveTokenHandler from '../api/drive-token.js';
+import adminEntitlementsHandler from '../api/admin/entitlements.js';
+import adminEntitlementEventsHandler from '../api/admin/entitlement-events.js';
+import adminEntitlementUpdateHandler from '../api/admin/entitlements/[id].js';
 
 const results = [];
 let failures = 0;
@@ -87,6 +90,9 @@ await run('POST /api/session refusé', sessionHandler, mockRequest({ method: 'PO
     import sessionHandler from '${new URL('../api/session.js', import.meta.url).pathname}';
     import dossierHandler from '${new URL('../api/dossier.js', import.meta.url).pathname}';
     import driveTokenHandler from '${new URL('../api/drive-token.js', import.meta.url).pathname}';
+    import adminEntitlementsHandler from '${new URL('../api/admin/entitlements.js', import.meta.url).pathname}';
+    import adminEntitlementEventsHandler from '${new URL('../api/admin/entitlement-events.js', import.meta.url).pathname}';
+    import adminEntitlementUpdateHandler from '${new URL('../api/admin/entitlements/[id].js', import.meta.url).pathname}';
     const makeRes = () => ({ statusCode: 0, headers: {}, payload: undefined, setHeader(k, v) { this.headers[k] = v; }, end(v) { this.payload = v ? JSON.parse(v) : undefined; } });
     const req = (url) => ({ method: 'GET', url, headers: { host: 'localhost' } });
     const sessionRes = makeRes();
@@ -98,6 +104,16 @@ await run('POST /api/session refusé', sessionHandler, mockRequest({ method: 'PO
     const driveRes = makeRes();
     await driveTokenHandler(req('/api/drive-token'), driveRes);
     if (driveRes.statusCode !== 200 || driveRes.payload.developmentBypass !== true || driveRes.payload.connected !== false) throw new Error('liaison Drive attendue 200/connected:false en développement');
+    const adminListRes = makeRes();
+    await adminEntitlementsHandler(req('/api/admin/entitlements'), adminListRes);
+    if (adminListRes.statusCode !== 200 || adminListRes.payload.auditAvailable !== false || adminListRes.payload.entitlements?.length !== 0) throw new Error('liste administrateur attendue 200 + tableau vide en développement');
+    const adminEventsRes = makeRes();
+    await adminEntitlementEventsHandler(req('/api/admin/entitlement-events'), adminEventsRes);
+    if (adminEventsRes.statusCode !== 200 || adminEventsRes.payload.events?.length !== 0) throw new Error('journal administrateur attendu 200 + tableau vide en développement');
+    const adminDecisionRes = makeRes();
+    const adminDecisionReq = { method: 'PATCH', url: '/api/admin/entitlements/6f1e0c2a-9b3d-4f57-8a10-2c9c4e5b7d31', headers: { host: 'localhost' }, body: { status: 'paid' } };
+    await adminEntitlementUpdateHandler(adminDecisionReq, adminDecisionRes);
+    if (adminDecisionRes.statusCode !== 503) throw new Error('décision administrateur attendue 503 sans Supabase en développement');
     console.log('bypass-ok:' + dossierRes.payload.folders.length);
   `;
   try {
@@ -132,6 +148,39 @@ await run('GET /api/public-config', publicConfigHandler, mockRequest({ url: '/ap
   assert.equal(response.statusCode, 200);
   assert.ok('supabaseUrl' in response.payload && 'supabaseAnonKey' in response.payload);
 });
+
+/* Administration : tableau de bord des règlements (réservé à l’administrateur). */
+const ADMIN_ID = '6f1e0c2a-9b3d-4f57-8a10-2c9c4e5b7d31';
+
+await run('GET /api/admin/entitlements sans jeton', adminEntitlementsHandler,
+  mockRequest({ url: '/api/admin/entitlements' }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
+
+await run('GET /api/admin/entitlements avec un jeton invalide', adminEntitlementsHandler,
+  mockRequest({ url: '/api/admin/entitlements', headers: bearer('jeton-invalide') }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
+
+await run('GET /api/admin/entitlement-events sans jeton', adminEntitlementEventsHandler,
+  mockRequest({ url: '/api/admin/entitlement-events' }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
+
+await run('POST /api/admin/entitlements refusé', adminEntitlementsHandler,
+  mockRequest({ method: 'POST', url: '/api/admin/entitlements' }),
+  ({ response }) => {
+    assert.equal(response.statusCode, 405);
+    assert.equal(response.headers.allow, 'GET');
+  });
+
+await run('PATCH /api/admin/entitlements/:id sans jeton', adminEntitlementUpdateHandler,
+  mockRequest({ method: 'PATCH', url: `/api/admin/entitlements/${ADMIN_ID}`, body: { status: 'paid' } }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
+
+await run('GET /api/admin/entitlements/:id refusé (méthode)', adminEntitlementUpdateHandler,
+  mockRequest({ url: `/api/admin/entitlements/${ADMIN_ID}` }),
+  ({ response }) => {
+    assert.equal(response.statusCode, 405);
+    assert.equal(response.headers.allow, 'PATCH');
+  });
 
 console.log(results.join('\n'));
 console.log(failures === 0 ? `\n${results.length} scénarios réussis.` : `\n${failures} échec(s).`);
