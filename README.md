@@ -186,6 +186,7 @@ Le build Vite inclut le catalogue d’accueil (`index.html`), les fiches de form
 ## Contenu du dépôt
 
 - `index.html` — page d’accueil et catalogues de programmes et de formations ; le contenu des parcours est présenté sur leurs fiches dédiées.
+- `home.css` / `home.js` — direction visuelle de l’accueil, filtres du catalogue, recherche et navigation mobile.
 - `formation-fiscale.html` — fiche de la formation en méthodologie fiscale et parcours en 7 séquences ; le lien vers le classeur se trouve en Séquence 03.
 - `connexion.html` — connexion Google et catalogue du participant.
 - `plateforme.css` / `plateforme.js` — interface responsive du catalogue et reprise de formation ; `COURSE_CATALOG` est le point d’extension pour les prochains parcours.
@@ -211,6 +212,7 @@ Le build Vite inclut le catalogue d’accueil (`index.html`), les fiches de form
 - `scripts/test-certificates-api.mjs` — tests des API de certificats, du stockage Supabase et de la confidentialité publique.
 - `scripts/test-admin-certificates-ui.mjs` — tests des formulaires d’administration, de la modification et de la validation des certificats.
 - `scripts/test-drive-module.mjs` — banc d’essai du module Drive face à un faux Google Drive.
+- `scripts/test-home-catalogue.mjs` — tests de la recherche, des filtres du catalogue et de la séparation des fiches de parcours.
 - `private/dossier-data.json` — 24 rubriques et 7 sous-rubriques pédagogiques, servies uniquement après validation côté serveur.
 - `storage/` — index, certificats et contenu des fichiers de dossiers ; créé automatiquement et ignoré par Git.
 - `scripts/` — scripts utilitaires conservés pour les opérations de maintenance.
