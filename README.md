@@ -4,7 +4,7 @@ Page web pédagogique en français pour une formation proposée par le Cabinet G
 
 ## Lancer en local
 
-Le projet nécessite Node.js 22 ou une version plus récente.
+Le projet et le runtime Vercel sont épinglés sur Node.js 22.x pour éviter les changements automatiques de version majeure.
 
 ```bash
 npm install
