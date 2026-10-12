@@ -333,3 +333,6 @@ html.course-gated .course-stage{display:none}
 .home-catalogue-choice{display:none;align-items:flex-start;gap:11px;margin-bottom:18px;padding:13px 16px;border:1px dashed #cfdcd8;border-radius:9px;background:#fbfcfa;color:var(--muted);font-size:.72rem;line-height:1.65}
 html.course-gated .home-catalogue-choice{display:flex}
 .home-catalogue-choice>span{flex:none;color:var(--teal);font-size:1rem;line-height:1.35}
+
+.footer-links{max-width:460px;flex-wrap:wrap;justify-content:flex-end;gap:11px 20px}
+@media(max-width:820px){.footer-links{max-width:none;justify-content:flex-start}}

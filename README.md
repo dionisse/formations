@@ -77,6 +77,12 @@ Le serveur et la migration RLS réservent l’administration à l’adresse Goog
 
 Le participant connecté peut ouvrir une demande d’accès en attente et envoyer son reçu via WhatsApp. Seul l’administrateur peut confirmer le paiement dans `/admin.html`. La vérification de l’entitlement protège le contenu de `/api/dossier` et toutes les opérations `/api/files`; les comptes non payés reçoivent une réponse `402`, les comptes non connectés une réponse `401`. L’administrateur peut gérer les demandes même sans entitlement de participant.
 
+## Documents juridiques modifiables depuis l’administration
+
+Les pages `/confidentialite.html` et `/conditions-utilisation.html` sont accessibles depuis les pieds de page du site. Une fois connecté à `/admin.html` avec le compte Google administrateur, ouvrez **Documents juridiques**, choisissez le texte, modifiez le titre et le contenu dans les champs prévus, puis enregistrez. L’éditeur accepte du texte simple (paragraphes, titres numérotés et puces) ; le HTML n’est pas utilisé ni interprété. Un aperçu est disponible avant publication.
+
+En local, `npm run dev` enregistre ces modifications dans `storage/legal-documents.json`. Pour la sauvegarde commune en production, appliquer `supabase/migrations/20261012160000_legal_documents.sql` après les migrations de comptes et de paiements. La table Supabase est lisible publiquement mais seules les sessions administrateur vérifiées peuvent l’écrire (RLS). Les textes de référence restent disponibles si Supabase n’est pas configuré ; une migration est nécessaire pour enregistrer les mises à jour en ligne.
+
 En local, `AUTH_BYPASS=true` (valeur par défaut de `npm run dev`) simule un compte administrateur et un accès payé pour travailler sur les interfaces. Ce bypass est automatiquement désactivé avec `NODE_ENV=production`; pour tester les refus d’accès, lancer `AUTH_BYPASS=false npm run server`.
 
 ## Utilisation sécurisée
@@ -85,6 +91,8 @@ En production, lancer le serveur derrière HTTPS avec `NODE_ENV=production`. Le 
 
 Routes principales :
 
+- `GET /api/legal-documents` — publier les deux textes juridiques ;
+- `GET /api/admin/legal-documents` et `PUT /api/admin/legal-documents` — lire et modifier ces textes (administrateur uniquement) ;
 - `GET /api/public-config` — transmettre uniquement l’URL Supabase et la clé publique ;
 - `GET /api/session` — vérifier le compte et son statut d’accès à la formation ;
 - `GET /api/entitlements` et `POST /api/entitlements/request` — consulter ou demander son propre accès ;
@@ -107,6 +115,8 @@ Un navigateur ne transmet pas le chemin absolu du fichier original présent sur 
 
 Le classeur fonctionne en ligne sur Vercel sans stockage de données : le contenu pédagogique payant est **embarqué dans la fonction** `api/dossier` et n’est servi qu’après vérification de l’accès côté serveur. Le dossier `api/` contient les routes portées depuis `server.mjs` :
 
+- `GET /api/legal-documents` — publication des documents juridiques ;
+- `GET /api/admin/legal-documents` et `PUT /api/admin/legal-documents` — consultation et édition administrateur ;
 - `GET /api/public-config` — URL et clé publique Supabase ;
 - `GET /api/session` — compte connecté et statut d’accès ;
 - `GET /api/entitlements` et `POST /api/entitlements/request` — consulter ou demander son accès ;
@@ -160,15 +170,17 @@ npm test
 npm run build
 ```
 
-Le build Vite inclut les pages d’accueil, de connexion participant, d’administration, de découverte Perfecto et le classeur (`classeur.html`). Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
+Le build Vite inclut les pages d’accueil, de connexion participant, d’administration, de découverte Perfecto, les deux documents juridiques (`confidentialite.html` et `conditions-utilisation.html`) et le classeur (`classeur.html`). Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
 
 ## Contenu du dépôt
 
 - `index.html` — page principale, accès au compte participant et parcours en 7 séquences ; le lien vers le classeur se trouve en Séquence 03.
 - `connexion.html` — connexion Google et catalogue du participant.
 - `plateforme.css` / `plateforme.js` — interface responsive du catalogue et reprise de formation ; `COURSE_CATALOG` est le point d’extension pour les prochains parcours.
-- `admin.html` / `admin.css` / `admin.js` — console protégée de confirmation des paiements et journal des décisions.
-- `vite.config.js` — build multipage de la page principale, de l’espace participant et de l’administration.
+- `admin.html` / `admin.css` / `admin.js` — console protégée des paiements, journal des décisions et éditeur simple des textes juridiques.
+- `confidentialite.html` / `conditions-utilisation.html` — pages publiques des deux documents ; `legal-documents-data.js` contient leurs textes de référence et `legal-page.js` les charge depuis l’API.
+- `supabase/migrations/20261012160000_legal_documents.sql` — stockage partagé des textes juridiques avec lecture publique et écriture administrateur protégée par RLS.
+- `vite.config.js` — build multipage de la page principale, des espaces participant et administrateur et des pages juridiques.
 - `styles.css` — direction artistique, illustrations, infographies et responsive design de la page principale.
 - `script.js` — navigation mobile, accordéons, rail de progression, QCM et synchronisation de progression Supabase par participant et formation.
 - `participant-auth.js` — compte participant, connexion Google et déconnexion via Supabase Auth.

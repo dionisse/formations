@@ -37,8 +37,28 @@
     </section>
 
     <section id="admin-dashboard" hidden>
-      <div class="admin-dashboard-hero"><div><span class="admin-kicker">ESPACE ADMINISTRATEUR</span><h1>Demandes de <em>règlement.</em></h1><p>Confirmez les paiements après vérification du reçu. La validation active uniquement la formation concernée.</p></div><div class="admin-hero-mark" aria-hidden="true">G</div></div>
+      <div class="admin-dashboard-hero"><div><span class="admin-kicker">ESPACE ADMINISTRATEUR</span><h1>Demandes de <em>règlement.</em></h1><p>Confirmez les paiements après vérification du reçu. La validation active uniquement la formation concernée.</p><a class="admin-legal-shortcut" href="#admin-legal-documents">Modifier les documents juridiques <span aria-hidden="true">→</span></a></div><div class="admin-hero-mark" aria-hidden="true">G</div></div>
       <div class="admin-summary" aria-label="Résumé des demandes"><article><span>EN ATTENTE</span><strong id="admin-pending-count">—</strong></article><article><span>ACCÈS ACTIFS</span><strong id="admin-paid-count">—</strong></article><article><span>ACCÈS RÉVOQUÉS</span><strong id="admin-revoked-count">—</strong></article></div>
+      <section class="admin-legal-editor" id="admin-legal-documents" aria-labelledby="admin-legal-title">
+        <div class="admin-section-head admin-legal-section-head"><div><span class="admin-kicker">CONTENUS PUBLICS</span><h2 id="admin-legal-title">Documents juridiques</h2><p>Modifiez le texte ici, sans toucher au code. Les changements enregistrés sont visibles sur les pages publiques.</p></div></div>
+        <div id="admin-legal-feedback" class="admin-legal-feedback" role="status" aria-live="polite">Chargement des documents…</div>
+        <div class="admin-legal-workspace">
+          <div class="admin-legal-tabs" role="tablist" aria-label="Choisir un document à modifier">
+            <button type="button" role="tab" id="admin-legal-tab-confidentialite" aria-controls="admin-legal-panel" aria-selected="true" data-legal-slug="confidentialite" disabled>Confidentialité</button>
+            <button type="button" role="tab" id="admin-legal-tab-conditions" aria-controls="admin-legal-panel" aria-selected="false" data-legal-slug="conditions-utilisation" disabled>Conditions d’utilisation</button>
+          </div>
+          <div class="admin-legal-panel" id="admin-legal-panel" role="tabpanel" aria-labelledby="admin-legal-tab-confidentialite">
+            <div class="admin-legal-document-head"><div><strong id="admin-legal-document-name">Politique de confidentialité</strong><span id="admin-legal-updated">Version de référence</span></div><a id="admin-legal-preview-link" href="/confidentialite.html" target="_blank" rel="noopener noreferrer">Voir la page publique ↗</a></div>
+            <label class="admin-legal-label" for="admin-legal-document-title">Titre</label>
+            <input id="admin-legal-document-title" class="admin-legal-title-input" type="text" maxlength="180" autocomplete="off" disabled />
+            <label class="admin-legal-label" for="admin-legal-document-content">Texte du document</label>
+            <textarea id="admin-legal-document-content" class="admin-legal-textarea" rows="22" maxlength="20000" spellcheck="true" aria-describedby="admin-legal-format-help admin-legal-char-count" disabled></textarea>
+            <div class="admin-legal-edit-help" id="admin-legal-format-help">Texte simple : une ligne vide sépare les paragraphes, les lignes « 1. Titre » deviennent des titres et les lignes « - Élément » deviennent des puces. Le HTML n’est pas nécessaire.</div>
+            <div class="admin-legal-editor-actions"><span id="admin-legal-char-count">0 / 20 000 caractères</span><button id="admin-legal-save" type="button" disabled>Enregistrer le document</button></div>
+            <details class="admin-legal-preview"><summary>Aperçu du texte</summary><article id="admin-legal-live-preview" class="admin-legal-live-preview"></article></details>
+          </div>
+        </div>
+      </section>
       <section class="admin-requests" aria-labelledby="admin-requests-title">
         <div class="admin-section-head"><div><span class="admin-kicker">SUIVI DES PAIEMENTS</span><h2 id="admin-requests-title">Participants et formations</h2></div><button id="admin-refresh-button" class="admin-refresh-button" type="button">Actualiser ↻</button></div>
         <div id="admin-feedback" class="admin-feedback" role="status" aria-live="polite"></div>
@@ -49,7 +69,7 @@
     </section>
   </main>
 
-  <footer class="admin-footer"><span>Fiscale<span>.</span> · Cabinet GOBEX</span><span>Administration protégée par Supabase Auth.</span></footer>
+  <footer class="admin-footer"><span>Fiscale<span>.</span> · Cabinet GOBEX</span><span>Administration protégée par Supabase Auth.</span><nav class="admin-legal-footer-links" aria-label="Documents juridiques"><a href="/confidentialite.html">Confidentialité</a><a href="/conditions-utilisation.html">Conditions d’utilisation</a></nav></footer>
 
   <script type="module" src="/supabase-env.js"></script>
   <script id="supabase-js-sdk" defer src="/vendor/supabase.js"></script>

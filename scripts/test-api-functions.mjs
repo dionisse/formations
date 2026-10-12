@@ -11,6 +11,8 @@ import driveTokenHandler from '../api/drive-token.js';
 import adminEntitlementsHandler from '../api/admin/entitlements.js';
 import adminEntitlementEventsHandler from '../api/admin/entitlement-events.js';
 import adminEntitlementUpdateHandler from '../api/admin/entitlements/[id].js';
+import legalDocumentsHandler from '../api/legal-documents.js';
+import adminLegalDocumentsHandler from '../api/admin/legal-documents.js';
 
 const results = [];
 let failures = 0;
@@ -148,6 +150,31 @@ await run('GET /api/public-config', publicConfigHandler, mockRequest({ url: '/ap
   assert.equal(response.statusCode, 200);
   assert.ok('supabaseUrl' in response.payload && 'supabaseAnonKey' in response.payload);
 });
+
+/* Les textes juridiques sont publics ; leur écriture reste protégée par l'API administrateur. */
+{
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  await run('GET /api/legal-documents sans connexion', legalDocumentsHandler, mockRequest({ url: '/api/legal-documents' }), ({ response }) => {
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.payload.documents.map((document) => document.slug), ['confidentialite', 'conditions-utilisation']);
+    assert.ok(response.payload.documents.every((document) => typeof document.content === 'string' && document.content.length > 100));
+  });
+  globalThis.fetch = previousFetch;
+}
+
+await run('POST /api/legal-documents refusé', legalDocumentsHandler, mockRequest({ method: 'POST', url: '/api/legal-documents' }), ({ response }) => {
+  assert.equal(response.statusCode, 405);
+  assert.equal(response.headers.allow, 'GET');
+});
+
+await run('GET /api/admin/legal-documents sans jeton', adminLegalDocumentsHandler,
+  mockRequest({ url: '/api/admin/legal-documents' }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
+
+await run('PUT /api/admin/legal-documents sans jeton', adminLegalDocumentsHandler,
+  mockRequest({ method: 'PUT', url: '/api/admin/legal-documents', body: { slug: 'confidentialite', title: 'Test', content: 'Texte' } }),
+  ({ response }) => { assert.equal(response.statusCode, 401); });
 
 /* Administration : tableau de bord des règlements (réservé à l’administrateur). */
 const ADMIN_ID = '6f1e0c2a-9b3d-4f57-8a10-2c9c4e5b7d31';

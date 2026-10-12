@@ -1,3 +1,6 @@
+import { LEGAL_DOCUMENTS, mergeLegalDocuments, LEGAL_DOCUMENT_MAX_LENGTH } from './legal-documents-data.js';
+import { renderLegalText } from './legal-text.js';
+
 const loginView = document.querySelector('#admin-login-view');
 const deniedView = document.querySelector('#admin-denied-view');
 const dashboard = document.querySelector('#admin-dashboard');
@@ -5,7 +8,16 @@ const entitlementsList = document.querySelector('#admin-entitlements-list');
 const eventsList = document.querySelector('#admin-events-list');
 const feedback = document.querySelector('#admin-feedback');
 const refreshButton = document.querySelector('#admin-refresh-button');
+const legalFeedback = document.querySelector('#admin-legal-feedback');
+const legalTabs = [...document.querySelectorAll('[data-legal-slug]')];
+const legalTitleInput = document.querySelector('#admin-legal-document-title');
+const legalContentInput = document.querySelector('#admin-legal-document-content');
+const legalSaveButton = document.querySelector('#admin-legal-save');
+const legalPreview = document.querySelector('#admin-legal-live-preview');
+const legalCharCount = document.querySelector('#admin-legal-char-count');
 const auth = window.fiscaleParticipantAuth;
+let legalDocuments = new Map(LEGAL_DOCUMENTS.map((document) => [document.slug, document]));
+let selectedLegalSlug = 'confidentialite';
 let currentSessionVersion = 0;
 
 function escapeHtml(value) {
@@ -130,6 +142,134 @@ async function loadData() {
   }
 }
 
+function currentLegalDocument() {
+  return legalDocuments.get(selectedLegalSlug) || null;
+}
+
+function legalDocumentUrl(slug) {
+  return slug === 'conditions-utilisation' ? '/conditions-utilisation.html' : '/confidentialite.html';
+}
+
+function legalDocumentIsDirty() {
+  const document = currentLegalDocument();
+  return Boolean(document && (legalTitleInput?.value !== document.title || legalContentInput?.value !== document.content));
+}
+
+function setLegalFeedback(message, isError = false) {
+  if (!legalFeedback) return;
+  legalFeedback.textContent = message;
+  legalFeedback.classList.toggle('is-error', isError);
+}
+
+function setLegalEditorEnabled(enabled) {
+  legalTabs.forEach((tab) => { tab.disabled = !enabled; });
+  if (legalTitleInput) legalTitleInput.disabled = !enabled;
+  if (legalContentInput) legalContentInput.disabled = !enabled;
+}
+
+function updateLegalEditor() {
+  const current = currentLegalDocument();
+  if (!current || !legalTitleInput || !legalContentInput) return;
+  const previewTitle = document.querySelector('#admin-legal-document-name');
+  const updatedLabel = document.querySelector('#admin-legal-updated');
+  const previewLink = document.querySelector('#admin-legal-preview-link');
+  if (previewTitle) previewTitle.textContent = legalTitleInput.value || 'Document sans titre';
+  if (updatedLabel) updatedLabel.textContent = current.updatedAt ? `Enregistré le ${formatDate(current.updatedAt)}` : 'Version de référence';
+  if (previewLink) previewLink.href = legalDocumentUrl(selectedLegalSlug);
+  if (legalCharCount) legalCharCount.textContent = `${legalContentInput.value.length.toLocaleString('fr-FR')} / ${LEGAL_DOCUMENT_MAX_LENGTH.toLocaleString('fr-FR')} caractères`;
+  if (legalPreview) renderLegalText(legalPreview, legalContentInput.value);
+  if (legalSaveButton) legalSaveButton.disabled = !legalDocumentIsDirty();
+  const panel = document.querySelector('#admin-legal-panel');
+  const activeTab = legalTabs.find((tab) => tab.dataset.legalSlug === selectedLegalSlug);
+  if (panel && activeTab) panel.setAttribute('aria-labelledby', activeTab.id);
+}
+
+function displayLegalDocument(slug, { confirmDiscard = true } = {}) {
+  if (!legalDocuments.has(slug) || slug === selectedLegalSlug) return;
+  if (confirmDiscard && legalDocumentIsDirty() && !window.confirm('Abandonner les modifications non enregistrées de ce document ?')) {
+    legalTabs.find((tab) => tab.dataset.legalSlug === selectedLegalSlug)?.focus();
+    return;
+  }
+
+  selectedLegalSlug = slug;
+  const current = currentLegalDocument();
+  legalTitleInput.value = current.title;
+  legalContentInput.value = current.content;
+  legalTabs.forEach((tab) => {
+    const selected = tab.dataset.legalSlug === slug;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  updateLegalEditor();
+  setLegalFeedback('Modifiez le texte puis enregistrez-le pour le publier.');
+}
+
+async function loadLegalDocuments() {
+  if (!legalFeedback) return;
+  setLegalEditorEnabled(false);
+  setLegalFeedback('Chargement des documents juridiques…');
+  try {
+    const payload = await authenticatedFetch('/api/admin/legal-documents');
+    legalDocuments = new Map(mergeLegalDocuments(payload.documents).map((document) => [document.slug, document]));
+    setLegalEditorEnabled(true);
+    const active = currentLegalDocument();
+    legalTitleInput.value = active.title;
+    legalContentInput.value = active.content;
+    updateLegalEditor();
+    setLegalFeedback(payload.source === 'defaults'
+      ? 'Textes de référence chargés. Configurez Supabase pour enregistrer les modifications partagées en ligne.'
+      : 'Textes chargés. Les modifications enregistrées seront publiées sur les pages publiques.');
+  } catch (error) {
+    legalDocuments = new Map(LEGAL_DOCUMENTS.map((document) => [document.slug, { ...document, updatedAt: null }]));
+    setLegalEditorEnabled(true);
+    legalTitleInput.value = currentLegalDocument().title;
+    legalContentInput.value = currentLegalDocument().content;
+    updateLegalEditor();
+    setLegalFeedback(`${error.message} Les textes de référence restent affichés ; l’enregistrement en ligne nécessite la migration Supabase.`, true);
+  }
+}
+
+async function saveLegalDocument() {
+  if (!legalDocumentIsDirty() || !legalSaveButton) return;
+  const title = legalTitleInput.value.trim();
+  const content = legalContentInput.value.trim();
+  if (!title || !content) {
+    setLegalFeedback('Le titre et le texte doivent être renseignés.', true);
+    return;
+  }
+  if (content.length > LEGAL_DOCUMENT_MAX_LENGTH) {
+    setLegalFeedback(`Le texte dépasse la limite de ${LEGAL_DOCUMENT_MAX_LENGTH.toLocaleString('fr-FR')} caractères.`, true);
+    return;
+  }
+
+  legalSaveButton.disabled = true;
+  legalSaveButton.textContent = 'Enregistrement…';
+  setLegalFeedback('Enregistrement du document…');
+  try {
+    const payload = await authenticatedFetch('/api/admin/legal-documents', {
+      method: 'PUT',
+      body: JSON.stringify({ slug: selectedLegalSlug, title, content })
+    });
+    const saved = payload.document || { slug: selectedLegalSlug, title, content, updatedAt: new Date().toISOString() };
+    legalDocuments.set(selectedLegalSlug, {
+      slug: saved.slug,
+      title: saved.title,
+      content: saved.content,
+      updatedAt: saved.updatedAt || null
+    });
+    legalTitleInput.value = saved.title;
+    legalContentInput.value = saved.content;
+    updateLegalEditor();
+    setLegalFeedback('Document enregistré. Il est maintenant consultable depuis le pied de page du site.');
+  } catch (error) {
+    setLegalFeedback(error.message, true);
+    updateLegalEditor();
+  } finally {
+    legalSaveButton.textContent = 'Enregistrer le document';
+    updateLegalEditor();
+  }
+}
+
 async function bootstrap() {
   const version = ++currentSessionVersion;
   if (!auth) {
@@ -149,7 +289,7 @@ async function bootstrap() {
       return;
     }
     showDashboard(serverSession);
-    await loadData();
+    await Promise.all([loadData(), loadLegalDocuments()]);
   } catch (error) {
     if (version !== currentSessionVersion) return;
     showLogin(error.message || 'La connexion n’a pas pu être vérifiée.');
@@ -157,6 +297,24 @@ async function bootstrap() {
 }
 
 refreshButton?.addEventListener('click', () => { void loadData(); });
+legalTabs.forEach((tab) => tab.addEventListener('click', () => displayLegalDocument(tab.dataset.legalSlug)));
+legalTitleInput?.addEventListener('input', updateLegalEditor);
+legalContentInput?.addEventListener('input', updateLegalEditor);
+legalSaveButton?.addEventListener('click', () => { void saveLegalDocument(); });
+document.querySelector('.admin-legal-tabs')?.addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  event.preventDefault();
+  const currentIndex = legalTabs.findIndex((tab) => tab.dataset.legalSlug === selectedLegalSlug);
+  const direction = event.key === 'ArrowRight' ? 1 : -1;
+  const next = legalTabs[(currentIndex + direction + legalTabs.length) % legalTabs.length];
+  next?.focus();
+  if (next) displayLegalDocument(next.dataset.legalSlug);
+});
+window.addEventListener('beforeunload', (event) => {
+  if (!legalDocumentIsDirty()) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 entitlementsList?.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-action][data-entitlement-id]');

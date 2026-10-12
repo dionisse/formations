@@ -200,3 +200,8 @@
   .perfecto-resource-links a{padding:15px 14px}
   .perfecto-footer-inner>span{width:100%;order:3}
 }
+
+.perfecto-footer-legal{display:flex;align-items:center;gap:15px}
+.perfecto-footer-legal a{color:#aecbf0;font-size:.64rem;font-weight:700}
+.perfecto-footer-legal a:hover{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:720px){.perfecto-footer-legal{flex-basis:100%;order:4;flex-wrap:wrap;gap:9px 16px}.perfecto-footer-legal a{font-size:.62rem}}

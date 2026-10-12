@@ -9,7 +9,9 @@ export default defineConfig({
         connexion: fileURLToPath(new URL('./connexion.html', import.meta.url)),
         admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
         perfecto: fileURLToPath(new URL('./perfecto.html', import.meta.url)),
-        classeur: fileURLToPath(new URL('./classeur.html', import.meta.url))
+        classeur: fileURLToPath(new URL('./classeur.html', import.meta.url)),
+        confidentialite: fileURLToPath(new URL('./confidentialite.html', import.meta.url)),
+        conditions: fileURLToPath(new URL('./conditions-utilisation.html', import.meta.url))
       }
     }
   }

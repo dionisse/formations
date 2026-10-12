@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { LEGAL_DOCUMENTS, LEGAL_DOCUMENT_MAX_LENGTH, mergeLegalDocuments } from './legal-documents-data.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 try {
@@ -30,6 +31,7 @@ const dossierPath = path.join(ROOT, 'private', 'dossier-data.json');
 const fileStoragePath = path.join(ROOT, 'storage', 'dossier-files');
 const fileIndexPath = path.join(ROOT, 'storage', 'file-index.json');
 const certificatesPath = path.join(ROOT, 'storage', 'certificates.json');
+const legalDocumentsPath = path.join(ROOT, 'storage', 'legal-documents.json');
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const SAFE_INLINE_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'text/plain']);
 const MIME_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -59,6 +61,39 @@ async function getCertificates() {
 async function saveCertificates(certificates) {
   await fs.mkdir(path.dirname(certificatesPath), { recursive: true });
   await fs.writeFile(certificatesPath, JSON.stringify(certificates, null, 2));
+}
+async function getLocalLegalDocuments() {
+  try {
+    const saved = await readJson(legalDocumentsPath);
+    return { documents: mergeLegalDocuments(saved.documents), source: 'local' };
+  } catch {
+    return { documents: mergeLegalDocuments(), source: 'defaults' };
+  }
+}
+async function saveLocalLegalDocument(document) {
+  const current = await getLocalLegalDocuments();
+  const updated = { ...document, updatedAt: new Date().toISOString() };
+  const documents = current.documents.map((item) => item.slug === document.slug ? updated : item);
+  await fs.mkdir(path.dirname(legalDocumentsPath), { recursive: true });
+  await fs.writeFile(legalDocumentsPath, JSON.stringify({ documents }, null, 2));
+  return updated;
+}
+async function readServerLegalDocuments(user = null) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { documents: mergeLegalDocuments(), source: 'defaults' };
+  const query = new URLSearchParams({ select: 'slug,title,content,updated_at', order: 'slug.asc' });
+  let response;
+  let payload;
+  if (user) {
+    ({ response, payload } = await supabaseRest(user, `legal_documents?${query}`));
+  } else {
+    response = await fetch(`${SUPABASE_URL}/rest/v1/legal_documents?${query}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, Accept: 'application/json' },
+      cache: 'no-store'
+    });
+    payload = await response.json().catch(() => null);
+  }
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+  return { documents: mergeLegalDocuments(Array.isArray(payload) ? payload : []), source: 'supabase' };
 }
 function certificateReference(value) {
   return String(value || '').trim().replace(/[^A-Za-z0-9-]/g, '').slice(0, 100);
@@ -207,6 +242,18 @@ async function requestBody(req) {
   for await (const chunk of req) { body += chunk; if (body.length > 64 * 1024) throw new Error('payload_too_large'); }
   return body ? JSON.parse(body) : {};
 }
+function normalizeLegalDocument(body) {
+  const slug = String(body?.slug || '').trim();
+  const title = typeof body?.title === 'string' ? body.title.replace(/\s+/g, ' ').trim() : '';
+  const content = typeof body?.content === 'string'
+    ? body.content.replace(/\r\n?/g, '\n').replace(/\u0000/g, '').trim()
+    : '';
+  if (!LEGAL_DOCUMENTS.some((document) => document.slug === slug)) return { error: 'Document juridique inconnu.' };
+  if (!title || title.length > 180) return { error: 'Le titre est obligatoire et doit contenir au plus 180 caractères.' };
+  if (!content) return { error: 'Le texte du document ne peut pas être vide.' };
+  if (content.length > LEGAL_DOCUMENT_MAX_LENGTH) return { error: `Le texte dépasse la limite de ${LEGAL_DOCUMENT_MAX_LENGTH} caractères.`, status: 413 };
+  return { document: { slug, title, content } };
+}
 
 function hasFolder(folderId, dossier) {
   return dossier.folders.some((folder) => folder.id === folderId || (folder.children || []).some((child) => child.id === folderId));
@@ -227,6 +274,68 @@ async function saveUploadedContent(req, file) {
 
 async function handleApi(req, res, url) {
   const pathname = url.pathname;
+  if (pathname === '/api/legal-documents') {
+    if (req.method !== 'GET') return json(res, 405, { error: 'Méthode non autorisée.' }, { Allow: 'GET' });
+    try {
+      const result = AUTH_BYPASS ? await getLocalLegalDocuments() : await readServerLegalDocuments();
+      return json(res, 200, result);
+    } catch (error) {
+      console.error('Public legal documents lookup failed:', error.message);
+      return json(res, 503, { error: 'Les documents juridiques ne peuvent pas être chargés pour le moment.' });
+    }
+  }
+
+  if (pathname === '/api/admin/legal-documents') {
+    if (!['GET', 'PUT'].includes(req.method)) return json(res, 405, { error: 'Méthode non autorisée.' }, { Allow: 'GET, PUT' });
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
+
+    if (req.method === 'GET') {
+      try {
+        const result = admin.developmentBypass ? await getLocalLegalDocuments() : await readServerLegalDocuments(admin);
+        return json(res, 200, result);
+      } catch (error) {
+        console.error('Administrator legal documents lookup failed:', error.message);
+        return json(res, 503, { error: 'Impossible de charger les documents. Vérifiez la migration Supabase des documents juridiques.' });
+      }
+    }
+
+    let body;
+    try { body = await requestBody(req); }
+    catch (error) {
+      const status = error.message === 'payload_too_large' ? 413 : 400;
+      return json(res, status, { error: status === 413 ? 'Texte trop volumineux.' : 'Le contenu reçu est invalide.' });
+    }
+    const normalized = normalizeLegalDocument(body);
+    if (normalized.error) return json(res, normalized.status || 400, { error: normalized.error });
+
+    if (admin.developmentBypass) {
+      const saved = await saveLocalLegalDocument(normalized.document);
+      return json(res, 200, { document: saved });
+    }
+
+    try {
+      const query = new URLSearchParams({ on_conflict: 'slug', select: 'slug,title,content,updated_at' });
+      const { response, payload } = await supabaseRest(admin, `legal_documents?${query}`, {
+        method: 'POST',
+        body: normalized.document,
+        prefer: 'resolution=merge-duplicates,return=representation'
+      });
+      if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+      const saved = Array.isArray(payload) ? payload[0] : null;
+      if (!saved) throw new Error('Supabase n’a pas retourné le document enregistré.');
+      return json(res, 200, { document: {
+        slug: saved.slug,
+        title: saved.title,
+        content: saved.content,
+        updatedAt: saved.updated_at || null
+      } });
+    } catch (error) {
+      console.error('Administrator legal document update failed:', error.message);
+      return json(res, 503, { error: 'Le document n’a pas pu être enregistré. Vérifiez la configuration et la migration Supabase.' });
+    }
+  }
+
   if (req.method === 'GET' && pathname === '/api/public-config') {
     return json(res, 200, { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY });
   }
