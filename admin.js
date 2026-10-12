@@ -250,7 +250,7 @@ async function changeCertificateStatus(button) {
   button.disabled = true;
   setCertificateFeedback('Enregistrement du statut…');
   try {
-    await authenticatedFetch(`/api/certificates/${encodeURIComponent(reference)}`, {
+    await authenticatedFetch(`/api/certificates?reference=${encodeURIComponent(reference)}`, {
       method: 'PATCH',
       body: JSON.stringify({ status })
     });

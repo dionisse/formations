@@ -207,6 +207,20 @@ async function verifySupabaseCertificate(reference) {
     validatedAt: row.validated_at || null
   };
 }
+async function lookupCertificate(reference) {
+  if (!AUTH_BYPASS && SUPABASE_URL && SUPABASE_ANON_KEY) return verifySupabaseCertificate(reference);
+  const { certificates } = await getCertificates();
+  const certificate = certificates.find((item) => item.reference === reference);
+  if (!certificate) return { valid: false, status: 'not_found', reference };
+  return {
+    valid: certificate.status === 'validated',
+    status: certificate.status,
+    reference: certificate.reference,
+    participantName: certificate.status === 'validated' ? certificate.participantName : '',
+    profile: certificate.status === 'validated' ? certificate.profile : '',
+    validatedAt: certificate.validatedAt || null
+  };
+}
 async function readUpload(req) {
   const declaredLength = Number(req.headers['content-length'] || 0);
   if (declaredLength > MAX_FILE_SIZE) throw new Error('file_too_large');
@@ -437,27 +451,17 @@ async function handleApi(req, res, url) {
     return json(res, 200, { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY });
   }
 
-  if (req.method === 'GET' && pathname === '/api/certificates/verify') {
+  if (req.method === 'GET' && (
+    pathname === '/api/certificates/verify'
+    || (pathname === '/api/certificates' && url.searchParams.get('verify') === '1')
+  )) {
     const reference = certificateReference(url.searchParams.get('reference'));
     if (!reference) return json(res, 400, { error: 'Code de certificat manquant.' });
-    if (!AUTH_BYPASS && SUPABASE_URL && SUPABASE_ANON_KEY) {
-      try { return json(res, 200, await verifySupabaseCertificate(reference)); }
-      catch (error) {
-        console.error('Public certificate verification failed:', error.message);
-        return json(res, 503, { error: 'La vérification des certificats est momentanément indisponible.' });
-      }
+    try { return json(res, 200, await lookupCertificate(reference)); }
+    catch (error) {
+      console.error('Public certificate verification failed:', error.message);
+      return json(res, 503, { error: 'La vérification des certificats est momentanément indisponible.' });
     }
-    const { certificates } = await getCertificates();
-    const certificate = certificates.find((item) => item.reference === reference);
-    if (!certificate) return json(res, 200, { valid: false, status: 'not_found', reference });
-    return json(res, 200, {
-      valid: certificate.status === 'validated',
-      status: certificate.status,
-      reference: certificate.reference,
-      participantName: certificate.status === 'validated' ? certificate.participantName : '',
-      profile: certificate.status === 'validated' ? certificate.profile : '',
-      validatedAt: certificate.validatedAt || null
-    });
   }
 
   if (req.method === 'GET' && pathname === '/api/session') {
@@ -634,10 +638,14 @@ async function handleApi(req, res, url) {
     const saved = certificates.certificates.find((certificate) => certificate.reference === certificateData.reference);
     return json(res, existing ? 200 : 201, { certificate: publicCertificate(saved, true) });
   }
-  if (pathname.startsWith('/api/certificates/') && req.method === 'PATCH') {
+  if ((pathname === '/api/certificates' || pathname.startsWith('/api/certificates/')) && req.method === 'PATCH') {
     const admin = await requireAdministrator(req, res);
     if (!admin) return;
-    const reference = certificateReference(pathname.slice('/api/certificates/'.length));
+    const rawReference = pathname === '/api/certificates'
+      ? url.searchParams.get('reference')
+      : pathname.slice('/api/certificates/'.length);
+    const reference = certificateReference(rawReference);
+    if (!reference) return json(res, 400, { error: 'Code de certificat invalide.' });
     const body = await requestBody(req);
     if (!['pending', 'validated', 'revoked'].includes(body.status)) return json(res, 400, { error: 'Statut de certificat invalide.' });
     if (!admin.developmentBypass) {

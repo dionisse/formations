@@ -32,8 +32,9 @@ globalThis.window = window;
 globalThis.document = document;
 globalThis.FormData = window.FormData;
 globalThis.fetch = async (url, options = {}) => {
-  const path = new URL(url, 'http://localhost:4173').pathname;
-  requests.push({ path, method: options.method || 'GET', body: options.body ? JSON.parse(options.body) : null });
+  const requestUrl = new URL(url, 'http://localhost:4173');
+  const path = requestUrl.pathname;
+  requests.push({ path, search: requestUrl.search, method: options.method || 'GET', body: options.body ? JSON.parse(options.body) : null });
   let payload = {};
   if (path === '/api/admin/entitlements') payload = { entitlements: [] };
   else if (path === '/api/admin/entitlement-events') payload = { events: [] };
@@ -44,9 +45,9 @@ globalThis.fetch = async (url, options = {}) => {
     const saved = { ...records.find((item) => item.reference === body.reference), ...body, updatedAt: '2026-10-12T14:00:00.000Z' };
     records = [...records.filter((item) => item.reference !== saved.reference), saved];
     payload = { certificate: saved };
-  } else if (path.startsWith('/api/certificates/') && options.method === 'PATCH') {
+  } else if (path === '/api/certificates' && options.method === 'PATCH') {
     const body = JSON.parse(options.body);
-    const reference = decodeURIComponent(path.split('/').at(-1));
+    const reference = requestUrl.searchParams.get('reference');
     records = records.map((item) => item.reference === reference ? { ...item, status: body.status, updatedAt: '2026-10-12T14:30:00.000Z' } : item);
     payload = { certificate: records.find((item) => item.reference === reference) };
   }
@@ -80,7 +81,7 @@ assert.match(document.querySelector('#admin-certificates-feedback').textContent,
 
 document.querySelector('[data-certificate-action="validated"]').click();
 await settle();
-const patchRequest = requests.find((request) => request.path === '/api/certificates/CERT-UI-01' && request.method === 'PATCH');
+const patchRequest = requests.find((request) => request.path === '/api/certificates' && request.search.includes('reference=CERT-UI-01') && request.method === 'PATCH');
 assert.equal(patchRequest.body.status, 'validated');
 assert.match(document.querySelector('#admin-certificates-list').textContent, /Validé/);
 

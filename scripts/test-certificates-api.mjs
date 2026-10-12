@@ -5,8 +5,6 @@ import { execFileSync } from 'node:child_process';
 const childScript = `
   import assert from 'node:assert/strict';
   import certificatesHandler from '${new URL('../api/certificates.js', import.meta.url).pathname}';
-  import certificateHandler from '${new URL('../api/certificates/[reference].js', import.meta.url).pathname}';
-  import verifyHandler from '${new URL('../api/certificates/verify.js', import.meta.url).pathname}';
 
   const adminId = '6f1e0c2a-9b3d-4f57-8a10-2c9c4e5b7d31';
   const requests = [];
@@ -88,7 +86,7 @@ const childScript = `
   assert.equal(savedBody.updated_by, adminId);
   assert.match(requests.at(-1).headers.Prefer, /resolution=merge-duplicates/);
 
-  const patch = await call(certificateHandler, makeRequest('PATCH', '/api/certificates/CERT-01', { status: 'validated' }, 'admin-token', { reference: 'CERT-01' }));
+  const patch = await call(certificatesHandler, makeRequest('PATCH', '/api/certificates?reference=CERT-01', { status: 'validated' }));
   assert.equal(patch.statusCode, 200);
   assert.equal(patch.payload.certificate.status, 'validated');
   assert.ok(patch.payload.certificate.validatedAt);
@@ -97,23 +95,23 @@ const childScript = `
   assert.equal(denied.statusCode, 403);
   const unauthorized = await call(certificatesHandler, makeRequest('POST', '/api/certificates', { reference: 'X', participantName: 'Personne' }, ''));
   assert.equal(unauthorized.statusCode, 401);
-  const invalidStatus = await call(certificateHandler, makeRequest('PATCH', '/api/certificates/CERT-01', { status: 'unknown' }, 'admin-token', { reference: 'CERT-01' }));
+  const invalidStatus = await call(certificatesHandler, makeRequest('PATCH', '/api/certificates?reference=CERT-01', { status: 'unknown' }));
   assert.equal(invalidStatus.statusCode, 400);
 
-  const publicVerification = await call(verifyHandler, makeRequest('GET', '/api/certificates/verify?reference=CERT-01', undefined, ''));
+  const publicVerification = await call(certificatesHandler, makeRequest('GET', '/api/certificates?verify=1&reference=CERT-01', undefined, ''));
   assert.equal(publicVerification.statusCode, 200);
   assert.equal(publicVerification.payload.valid, false);
   assert.equal(publicVerification.payload.participantName, '');
   assert.equal(publicVerification.payload.profile, '');
   assert.deepEqual(Object.keys(publicVerification.payload).sort(), ['profile', 'participantName', 'reference', 'status', 'valid', 'validatedAt'].sort());
   verificationStatus = 'validated';
-  const verified = await call(verifyHandler, makeRequest('GET', '/api/certificates/verify?reference=CERT-01', undefined, ''));
+  const verified = await call(certificatesHandler, makeRequest('GET', '/api/certificates?verify=1&reference=CERT-01', undefined, ''));
   assert.equal(verified.payload.valid, true);
   assert.equal(verified.payload.participantName, 'Alice Test');
   assert.equal(verified.payload.profile, 'Fiscaliste');
-  const wrongMethod = await call(verifyHandler, makeRequest('POST', '/api/certificates/verify?reference=CERT-01', {}, ''));
+  const wrongMethod = await call(certificatesHandler, makeRequest('POST', '/api/certificates?verify=1&reference=CERT-01', {}, ''));
   assert.equal(wrongMethod.statusCode, 405);
-  const missingReference = await call(verifyHandler, makeRequest('GET', '/api/certificates/verify', undefined, ''));
+  const missingReference = await call(certificatesHandler, makeRequest('GET', '/api/certificates?verify=1', undefined, ''));
   assert.equal(missingReference.statusCode, 400);
 
   console.log('Vérifications des API de certificats, de l’accès administrateur et de la confidentialité réussies.');

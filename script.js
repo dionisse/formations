@@ -1527,7 +1527,7 @@ if (quizForm7) {
     verifyButton.disabled = true;
     setValidationStatus('Vérification de l’état auprès du cabinet…', 'pending');
     try {
-      const response = await fetch(`/api/certificates/verify?reference=${encodeURIComponent(reference)}`, { cache: 'no-store' });
+      const response = await fetch(`/api/certificates?verify=1&reference=${encodeURIComponent(reference)}`, { cache: 'no-store' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'verification_failed');
       state.validated = result.valid === true;
@@ -1629,7 +1629,7 @@ if (quizForm7) {
 
   async function changeDeveloperStatus(reference, status) {
     try {
-      await parseResponse(await fetch(`/api/certificates/${encodeURIComponent(reference)}`, { method: 'PATCH', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) }));
+      await parseResponse(await fetch(`/api/certificates?reference=${encodeURIComponent(reference)}`, { method: 'PATCH', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) }));
       developerMessage.textContent = `Certificat ${reference} : ${developerStatusLabel(status)}.`;
       await loadDeveloperCertificates();
     } catch (error) {

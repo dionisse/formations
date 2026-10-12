@@ -99,8 +99,8 @@ Routes principales :
 
 - `GET /api/legal-documents` — publier les deux textes juridiques ;
 - `GET /api/admin/legal-documents` et `PUT /api/admin/legal-documents` — lire et modifier ces textes (administrateur uniquement) ;
-- `GET` et `POST /api/certificates`, `PATCH /api/certificates/:reference` — gérer les dossiers de certificats (administrateur uniquement) ;
-- `GET /api/certificates/verify?reference=...` — vérifier un code sans exposer les données privées ;
+- `GET` et `POST /api/certificates`, `PATCH /api/certificates?reference=...` — gérer les dossiers de certificats (administrateur uniquement) ;
+- `GET /api/certificates?verify=1&reference=...` — vérifier un code sans exposer les données privées ;
 - `GET /api/public-config` — transmettre uniquement l’URL Supabase et la clé publique ;
 - `GET /api/session` — vérifier le compte et son statut d’accès à la formation ;
 - `GET /api/entitlements` et `POST /api/entitlements/request` — consulter ou demander son propre accès ;
@@ -133,8 +133,8 @@ Le classeur fonctionne en ligne sur Vercel sans stockage de données : le conten
 - `POST /api/drive-token` — accès temporaire (1 heure) au Drive du participant, et enregistrement du jeton hors ligne ;
 - `DELETE /api/drive-token` — retrait de la liaison ;
 - `GET` et `POST /api/certificates` — consulter, créer ou modifier un dossier de certificat (administrateur uniquement) ;
-- `PATCH /api/certificates/:reference` — changer le statut d’un certificat (administrateur uniquement) ;
-- `GET /api/certificates/verify?reference=...` — vérifier publiquement un code sans exposer les renseignements privés ;
+- `PATCH /api/certificates?reference=...` — changer le statut d’un certificat (administrateur uniquement) ;
+- `GET /api/certificates?verify=1&reference=...` — vérifier publiquement un code sans exposer les renseignements privés ;
 - `GET /api/admin/entitlements` et `PATCH /api/admin/entitlements/:id` — lister et décider les demandes de règlement (administrateur uniquement) ;
 - `GET /api/admin/entitlement-events` — journal des décisions (administrateur uniquement).
 
@@ -144,7 +144,7 @@ Avec ces routes, le tableau de bord `/admin.html` fonctionne aussi en ligne : la
 
 En ligne, les variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` doivent être définies dans les réglages du projet Vercel, comme pour le build du site.
 
-`server.mjs` conserve les routes du développement local et utilise des fichiers JSON ignorés par Git pour les certificats et les documents juridiques en mode `AUTH_BYPASS`. En production Vercel, les routes serverless de certificats (`api/certificates.js`, `api/certificates/[reference].js` et `api/certificates/verify.js`) utilisent Supabase. Les fichiers du classeur ne passent pas par le serveur en ligne : ils vont dans le Google Drive du participant (voir ci-dessous), ce qui supprime la limite de 4,5 Mo par requête des fonctions Vercel.
+`server.mjs` conserve les routes du développement local et utilise des fichiers JSON ignorés par Git pour les certificats et les documents juridiques en mode `AUTH_BYPASS`. En production Vercel, une seule fonction serverless (`api/certificates.js`) gère les consultations, écritures et vérifications publiques des certificats, avec Supabase. Les fichiers du classeur ne passent pas par le serveur en ligne : ils vont dans le Google Drive du participant (voir ci-dessous), ce qui supprime la limite de 4,5 Mo par requête des fonctions Vercel.
 
 ## Fichiers du participant : Google Drive
 
