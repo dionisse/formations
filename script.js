@@ -55,35 +55,40 @@ function activateSequence(number, scrollToCard = false) {
   if (scrollToCard) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-sequenceCards.forEach((card) => {
-  const toggle = card.querySelector('.sequence-toggle');
-  toggle?.addEventListener('click', () => {
-    const willOpen = !card.classList.contains('open');
-    sequenceCards.forEach((other) => {
-      other.classList.remove('open');
-      other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
+/* Quand le parcours guidé est présent, il gère seul le dépliage des séquences
+   et la rail de progression : un second gestionnaire ici se déclencherait après
+   le sien et refermerait immédiatement la carte que l'on vient d'ouvrir. */
+if (!document.querySelector('#guided-banner')) {
+  sequenceCards.forEach((card) => {
+    const toggle = card.querySelector('.sequence-toggle');
+    toggle?.addEventListener('click', () => {
+      const willOpen = !card.classList.contains('open');
+      sequenceCards.forEach((other) => {
+        other.classList.remove('open');
+        other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
+      });
+      if (willOpen) {
+        card.classList.add('open');
+        toggle.setAttribute('aria-expanded', 'true');
+        activateSequence(card.dataset.sequenceCard);
+      }
     });
-    if (willOpen) {
-      card.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      activateSequence(card.dataset.sequenceCard);
-    }
   });
-});
 
-railSteps.forEach((step) => {
-  step.addEventListener('click', () => {
-    const number = step.dataset.sequence;
-    const card = document.querySelector(`[data-sequence-card="${number}"]`);
-    sequenceCards.forEach((other) => {
-      other.classList.remove('open');
-      other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
+  railSteps.forEach((step) => {
+    step.addEventListener('click', () => {
+      const number = step.dataset.sequence;
+      const card = document.querySelector(`[data-sequence-card="${number}"]`);
+      sequenceCards.forEach((other) => {
+        other.classList.remove('open');
+        other.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'false');
+      });
+      card?.classList.add('open');
+      card?.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'true');
+      activateSequence(number, true);
     });
-    card?.classList.add('open');
-    card?.querySelector('.sequence-toggle')?.setAttribute('aria-expanded', 'true');
-    activateSequence(number, true);
   });
-});
+}
 
 const observedSections = [...document.querySelectorAll('main section[id]')];
 const navLinks = [...document.querySelectorAll('.main-nav a')];
