@@ -26,6 +26,11 @@ const adminPage = new JSDOM(readFileSync(new URL('../admin.html', import.meta.ur
 assert.ok(adminPage.window.document.querySelector('#admin-legal-document-title'));
 assert.ok(adminPage.window.document.querySelector('#admin-legal-document-content'));
 assert.equal(adminPage.window.document.querySelectorAll('[data-legal-slug]').length, 2);
+assert.ok(adminPage.window.document.querySelector('#admin-certificate-form'));
+assert.ok(adminPage.window.document.querySelector('#admin-certificate-reference[required]'));
+assert.equal(adminPage.window.document.querySelectorAll('#admin-certificate-status option').length, 3);
+assert.ok(adminPage.window.document.querySelector('.admin-quick-tools a[href="/classeur.html"]'));
+assert.ok(adminPage.window.document.querySelector('.admin-quick-tools a[href="/index.html?mode=developer#programme"]'));
 adminPage.window.close();
 
 for (const file of ['index.html', 'connexion.html', 'perfecto.html', 'admin.html']) {

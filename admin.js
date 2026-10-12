@@ -15,8 +15,17 @@ const legalContentInput = document.querySelector('#admin-legal-document-content'
 const legalSaveButton = document.querySelector('#admin-legal-save');
 const legalPreview = document.querySelector('#admin-legal-live-preview');
 const legalCharCount = document.querySelector('#admin-legal-char-count');
+const certificateForm = document.querySelector('#admin-certificate-form');
+const certificateFeedback = document.querySelector('#admin-certificates-feedback');
+const certificatesList = document.querySelector('#admin-certificates-list');
+const certificatesRefreshButton = document.querySelector('#admin-certificates-refresh');
+const certificateSearch = document.querySelector('#admin-certificate-search');
+const certificateSaveButton = document.querySelector('#admin-certificate-save');
+const certificateCancelButton = document.querySelector('#admin-certificate-cancel');
 const auth = window.fiscaleParticipantAuth;
 let legalDocuments = new Map(LEGAL_DOCUMENTS.map((document) => [document.slug, document]));
+let certificates = [];
+let editingCertificateReference = '';
 let selectedLegalSlug = 'confidentialite';
 let currentSessionVersion = 0;
 
@@ -28,6 +37,10 @@ function escapeHtml(value) {
 
 function statusLabel(status) {
   return ({ pending: 'En attente', paid: 'Payé · accès actif', revoked: 'Révoqué' })[status] || 'Inconnu';
+}
+
+function certificateStatusLabel(status) {
+  return ({ pending: 'En attente', validated: 'Validé', revoked: 'Révoqué' })[status] || 'Inconnu';
 }
 
 function formatDate(value) {
@@ -120,6 +133,133 @@ function renderEvents(events) {
     return;
   }
   eventsList.innerHTML = events.map((event) => `<article class="admin-event-row"><strong>${escapeHtml(event.course_version)}</strong><span>${escapeHtml(event.previous_status || 'nouvelle demande')} → ${escapeHtml(statusLabel(event.new_status))} · participant ${escapeHtml(String(event.user_id).slice(0, 8))}</span><time>${escapeHtml(formatDate(event.created_at))}</time></article>`).join('');
+}
+
+function setCertificateFeedback(message, isError = false) {
+  if (!certificateFeedback) return;
+  certificateFeedback.textContent = message;
+  certificateFeedback.classList.toggle('is-error', isError);
+}
+
+function renderCertificates() {
+  if (!certificatesList) return;
+  const count = document.querySelector('#admin-certificates-count');
+  if (count) count.textContent = String(certificates.length).padStart(2, '0');
+  const term = certificateSearch?.value.trim().toLocaleLowerCase('fr-FR') || '';
+  const visible = certificates.filter((certificate) => [certificate.reference, certificate.participantName, certificate.profile, certificate.paymentReference]
+    .some((value) => String(value || '').toLocaleLowerCase('fr-FR').includes(term)));
+  if (!visible.length) {
+    certificatesList.innerHTML = `<p class="admin-certificate-empty">${certificates.length ? 'Aucun certificat ne correspond à votre recherche.' : 'Aucune demande enregistrée. Créez une demande avec le formulaire.'}</p>`;
+    return;
+  }
+  certificatesList.innerHTML = visible.map((certificate) => {
+    const reference = escapeHtml(certificate.reference);
+    const validatedDisabled = certificate.status === 'validated' ? 'disabled' : '';
+    const pendingDisabled = certificate.status === 'pending' ? 'disabled' : '';
+    const revokedDisabled = certificate.status === 'revoked' ? 'disabled' : '';
+    const paymentReference = certificate.paymentReference
+      ? `<span>Reçu : <b>${escapeHtml(certificate.paymentReference)}</b></span>`
+      : '<span>Référence de reçu : <b>non renseignée</b></span>';
+    return `<article class="admin-certificate-card" data-certificate-reference="${reference}">
+      <div class="admin-certificate-card-head"><div><strong class="admin-certificate-reference">${reference}</strong><span class="admin-certificate-name">${escapeHtml(certificate.participantName)}</span><span class="admin-certificate-subtitle">${escapeHtml(certificate.profile || 'Profil non renseigné')}</span></div><span class="admin-certificate-badge" data-status="${escapeHtml(certificate.status)}">${escapeHtml(certificateStatusLabel(certificate.status))}</span></div>
+      <div class="admin-certificate-card-meta"><span>Modifié : <b>${escapeHtml(formatDate(certificate.updatedAt))}</b></span>${paymentReference}</div>
+      <div class="admin-certificate-card-actions"><button type="button" data-certificate-action="edit" data-certificate-reference="${reference}">Modifier les informations</button><button type="button" data-certificate-action="validated" data-certificate-reference="${reference}" ${validatedDisabled}>Valider</button><button type="button" data-certificate-action="pending" data-certificate-reference="${reference}" ${pendingDisabled}>En attente</button><button type="button" data-certificate-action="revoked" data-certificate-reference="${reference}" ${revokedDisabled}>Révoquer</button></div>
+    </article>`;
+  }).join('');
+}
+
+async function loadCertificates(successMessage = '') {
+  if (!certificatesList) return;
+  setCertificateFeedback('Chargement des certificats…');
+  certificatesList.innerHTML = '<p class="admin-certificate-empty">Chargement…</p>';
+  try {
+    const result = await authenticatedFetch('/api/certificates');
+    certificates = Array.isArray(result.certificates) ? result.certificates : [];
+    renderCertificates();
+    setCertificateFeedback(successMessage || 'Dossiers privés : seul le compte administrateur peut consulter ces informations. Vérifiez le reçu avant toute validation.');
+  } catch (error) {
+    certificates = [];
+    renderCertificates();
+    setCertificateFeedback(`${error.message} Vérifiez la migration Supabase des certificats et les règles RLS.`, true);
+    certificatesList.innerHTML = '<p class="admin-certificate-empty">Impossible de charger les certificats. Les données personnelles restent protégées ; vérifiez la configuration serveur.</p>';
+  }
+}
+
+function resetCertificateForm() {
+  if (!certificateForm) return;
+  certificateForm.reset();
+  certificateForm.elements.namedItem('reference').readOnly = false;
+  certificateForm.elements.namedItem('status').value = 'pending';
+  editingCertificateReference = '';
+  document.querySelector('#admin-certificate-form-mode').textContent = 'NOUVELLE DEMANDE';
+  certificateSaveButton.textContent = 'Enregistrer la demande';
+  certificateCancelButton.hidden = true;
+}
+
+function editCertificate(reference) {
+  const certificate = certificates.find((item) => item.reference === reference);
+  if (!certificate || !certificateForm) return;
+  editingCertificateReference = certificate.reference;
+  for (const [field, value] of Object.entries({
+    reference: certificate.reference,
+    participantName: certificate.participantName,
+    profile: certificate.profile,
+    birthDate: certificate.birthDate,
+    birthPlace: certificate.birthPlace,
+    nationality: certificate.nationality,
+    paymentReference: certificate.paymentReference,
+    status: certificate.status
+  })) {
+    const input = certificateForm.elements.namedItem(field);
+    if (input) input.value = value || '';
+  }
+  certificateForm.elements.namedItem('reference').readOnly = true;
+  document.querySelector('#admin-certificate-form-mode').textContent = 'MODIFICATION DU DOSSIER';
+  certificateSaveButton.textContent = 'Enregistrer les modifications';
+  certificateCancelButton.hidden = false;
+  certificateForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  certificateForm.elements.namedItem('participantName').focus({ preventScroll: true });
+}
+
+async function saveCertificate(event) {
+  event.preventDefault();
+  if (!certificateForm?.reportValidity()) return;
+  const body = Object.fromEntries(new FormData(certificateForm).entries());
+  body.reference = editingCertificateReference || body.reference.trim();
+  body.participantName = body.participantName.trim();
+  if (body.status === 'validated' && !window.confirm('Le reçu de paiement et les informations du participant ont-ils été vérifiés ? Le certificat deviendra publiquement vérifiable.')) return;
+  certificateSaveButton.disabled = true;
+  setCertificateFeedback('Enregistrement du certificat…');
+  try {
+    const successMessage = editingCertificateReference ? 'Modifications enregistrées.' : 'Demande de certificat enregistrée.';
+    await authenticatedFetch('/api/certificates', { method: 'POST', body: JSON.stringify(body) });
+    resetCertificateForm();
+    await loadCertificates(successMessage);
+  } catch (error) {
+    setCertificateFeedback(error.message, true);
+  } finally {
+    certificateSaveButton.disabled = false;
+  }
+}
+
+async function changeCertificateStatus(button) {
+  const reference = button.dataset.certificateReference;
+  const status = button.dataset.certificateAction;
+  if (!['pending', 'validated', 'revoked'].includes(status) || button.disabled) return;
+  if (status === 'validated' && !window.confirm('Avez-vous vérifié le reçu de paiement et l’identité du participant ? La validation sera visible lors de la vérification publique du code.')) return;
+  button.disabled = true;
+  setCertificateFeedback('Enregistrement du statut…');
+  try {
+    await authenticatedFetch(`/api/certificates/${encodeURIComponent(reference)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+    if (editingCertificateReference === reference) certificateForm.elements.namedItem('status').value = status;
+    await loadCertificates(`Certificat ${reference} : ${certificateStatusLabel(status)}.`);
+  } catch (error) {
+    setCertificateFeedback(error.message, true);
+    button.disabled = false;
+  }
 }
 
 async function loadData() {
@@ -289,7 +429,7 @@ async function bootstrap() {
       return;
     }
     showDashboard(serverSession);
-    await Promise.all([loadData(), loadLegalDocuments()]);
+    await Promise.all([loadData(), loadLegalDocuments(), loadCertificates()]);
   } catch (error) {
     if (version !== currentSessionVersion) return;
     showLogin(error.message || 'La connexion n’a pas pu être vérifiée.');
@@ -297,6 +437,16 @@ async function bootstrap() {
 }
 
 refreshButton?.addEventListener('click', () => { void loadData(); });
+certificatesRefreshButton?.addEventListener('click', () => { void loadCertificates(); });
+certificateForm?.addEventListener('submit', (event) => { void saveCertificate(event); });
+certificateCancelButton?.addEventListener('click', resetCertificateForm);
+certificateSearch?.addEventListener('input', renderCertificates);
+certificatesList?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-certificate-action][data-certificate-reference]');
+  if (!button) return;
+  if (button.dataset.certificateAction === 'edit') editCertificate(button.dataset.certificateReference);
+  else void changeCertificateStatus(button);
+});
 legalTabs.forEach((tab) => tab.addEventListener('click', () => displayLegalDocument(tab.dataset.legalSlug)));
 legalTitleInput?.addEventListener('input', updateLegalEditor);
 legalContentInput?.addEventListener('input', updateLegalEditor);

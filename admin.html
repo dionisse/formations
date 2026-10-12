@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#10212b" />
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="description" content="Administration des accès aux formations du Cabinet GOBEX." />
+  <meta name="description" content="Administration protégée des paiements, certificats, documents juridiques et espaces de test GOBEX." />
   <title>Administration · Fiscale</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="admin-certificates.css" />
 </head>
 <body class="admin-page">
   <header class="admin-header">
     <a class="admin-brand" href="/"><span class="admin-brand-mark">✓</span><span>Fiscale<span>.</span><small>ADMINISTRATION GOBEX</small></span></a>
-    <nav><a href="/">Accueil</a><a href="/classeur.html">Classeur</a><span id="admin-identity" hidden></span><button id="participant-logout-button" type="button" hidden>Déconnexion</button></nav>
+    <nav><a href="/">Accueil</a><a href="/classeur.html">Classeur de test</a><span id="admin-identity" hidden></span><button id="participant-logout-button" type="button" hidden>Déconnexion</button></nav>
   </header>
 
   <main class="admin-main">
@@ -23,22 +24,56 @@
       <div class="admin-gate-mark" aria-hidden="true">⌑</div>
       <span class="admin-kicker">ACCÈS ADMINISTRATEUR</span>
       <h1>Administration<br /><em>des accès formation.</em></h1>
-      <p>Connectez-vous avec le compte Google administrateur autorisé pour examiner les demandes et confirmer les règlements reçus.</p>
+      <p>Connectez-vous avec <strong>godwingobex@gmail.com</strong> pour gérer les paiements, les certificats et les documents juridiques, et accéder aux espaces de test.</p>
       <button id="participant-google-login" data-redirect-to="/admin.html" class="admin-google-button" type="button"><span class="google-mark">G</span><span>Continuer avec Google</span><b aria-hidden="true">→</b></button>
-      <p id="participant-auth-status" class="admin-auth-status" role="status" aria-live="polite">Seul le compte administrateur autorisé peut accéder à ces données.</p>
+      <p id="participant-auth-status" class="admin-auth-status" role="status" aria-live="polite">Accès protégé réservé au compte godwingobex@gmail.com.</p>
     </section>
 
     <section id="admin-denied-view" class="admin-gate admin-denied" hidden>
       <div class="admin-gate-mark">!</div><span class="admin-kicker">ACCÈS REFUSÉ</span>
       <h1>Ce compte n’est pas<br /><em>administrateur.</em></h1>
-      <p>Utilisez le compte Google administrateur autorisé. Aucun droit d’accès ne peut être accordé depuis ce compte.</p>
+      <p>Seul <strong>godwingobex@gmail.com</strong> peut ouvrir cet espace. Aucun droit d’accès ne peut être accordé depuis ce compte.</p>
       <p class="admin-current-account">Compte connecté : <strong id="admin-denied-email"></strong></p>
       <button id="denied-signout-button" class="admin-secondary-button" type="button">Déconnexion et choisir un autre compte</button>
     </section>
 
     <section id="admin-dashboard" hidden>
-      <div class="admin-dashboard-hero"><div><span class="admin-kicker">ESPACE ADMINISTRATEUR</span><h1>Demandes de <em>règlement.</em></h1><p>Confirmez les paiements après vérification du reçu. La validation active uniquement la formation concernée.</p><a class="admin-legal-shortcut" href="#admin-legal-documents">Modifier les documents juridiques <span aria-hidden="true">→</span></a></div><div class="admin-hero-mark" aria-hidden="true">G</div></div>
+      <div class="admin-dashboard-hero"><div><span class="admin-kicker">ESPACE ADMINISTRATEUR</span><h1>Gestion &amp; <em>validation.</em></h1><p>Confirmez les paiements après vérification du reçu, gérez les certificats et ouvrez les espaces de test.</p></div><div class="admin-hero-mark" aria-hidden="true">G</div></div>
       <div class="admin-summary" aria-label="Résumé des demandes"><article><span>EN ATTENTE</span><strong id="admin-pending-count">—</strong></article><article><span>ACCÈS ACTIFS</span><strong id="admin-paid-count">—</strong></article><article><span>ACCÈS RÉVOQUÉS</span><strong id="admin-revoked-count">—</strong></article></div>
+      <nav class="admin-quick-tools" aria-label="Raccourcis d’administration">
+        <a href="#admin-requests"><span>01 · PAIEMENTS</span><strong>Gérer les règlements</strong><small>Vérifier un reçu, activer ou révoquer l’accès à une formation.</small></a>
+        <a href="#admin-certificates"><span>02 · CERTIFICATS</span><strong>Gérer les certificats</strong><small>Créer une demande, corriger ses données et valider ou révoquer le certificat.</small></a>
+        <a href="#admin-legal-documents"><span>03 · DOCUMENTS</span><strong>Conditions &amp; confidentialité</strong><small>Modifier les textes publiés sur le site.</small></a>
+        <a href="/classeur.html" target="_blank" rel="noopener noreferrer"><span>04 · ESPACE DE TEST</span><strong>Ouvrir le classeur ↗</strong><small>Accès administrateur sans paiement. Les fichiers de test seront dans votre propre espace Google Drive.</small></a>
+        <a href="/index.html?mode=developer#programme" target="_blank" rel="noopener noreferrer"><span>05 · ESPACE DE TEST</span><strong>Tester le parcours ↗</strong><small>Sur ordinateur : parcours de formation et outils développeur.</small></a>
+      </nav>
+      <section id="admin-certificates" class="admin-certificates" aria-labelledby="admin-certificates-title">
+        <div class="admin-section-head"><div><span class="admin-kicker">PAIEMENT WHATSAPP · VALIDATION MANUELLE</span><h2 id="admin-certificates-title">Certificats de participation</h2><p>Enregistrez la référence du reçu si disponible. Vérifiez le paiement et les informations avant de valider le certificat.</p></div><button id="admin-certificates-refresh" class="admin-refresh-button" type="button">Actualiser ↻</button></div>
+        <div id="admin-certificates-feedback" class="admin-certificates-feedback" role="status" aria-live="polite">Chargement des certificats…</div>
+        <div class="admin-certificate-workspace">
+          <form id="admin-certificate-form" class="admin-certificate-form">
+            <div class="admin-certificate-form-heading"><span id="admin-certificate-form-mode">NOUVELLE DEMANDE</span><button id="admin-certificate-cancel" type="button" hidden>Annuler la modification</button></div>
+            <label for="admin-certificate-reference">Code du certificat <span>*</span></label>
+            <input id="admin-certificate-reference" name="reference" type="text" maxlength="100" pattern="[A-Za-z0-9-]{1,100}" autocomplete="off" required />
+            <label for="admin-certificate-name">Nom et prénoms <span>*</span></label>
+            <input id="admin-certificate-name" name="participantName" type="text" maxlength="180" autocomplete="name" required />
+            <div class="admin-certificate-fields-grid"><div><label for="admin-certificate-profile">Profil</label><input id="admin-certificate-profile" name="profile" type="text" maxlength="80" /></div><div><label for="admin-certificate-birth-date">Date de naissance</label><input id="admin-certificate-birth-date" name="birthDate" type="text" maxlength="30" /></div></div>
+            <label for="admin-certificate-birth-place">Lieu de naissance</label>
+            <input id="admin-certificate-birth-place" name="birthPlace" type="text" maxlength="120" />
+            <label for="admin-certificate-nationality">Nationalité</label>
+            <input id="admin-certificate-nationality" name="nationality" type="text" maxlength="80" />
+            <label for="admin-certificate-payment-reference">Référence du reçu ou de la transaction <span class="admin-optional">facultatif</span></label>
+            <input id="admin-certificate-payment-reference" name="paymentReference" type="text" maxlength="180" autocomplete="off" />
+            <label for="admin-certificate-status">Statut</label>
+            <select id="admin-certificate-status" name="status"><option value="pending">En attente de vérification</option><option value="validated">Validé</option><option value="revoked">Révoqué</option></select>
+            <button id="admin-certificate-save" type="submit">Enregistrer la demande</button>
+          </form>
+          <div class="admin-certificates-list-panel">
+            <div class="admin-certificates-list-head"><div><strong>Demandes enregistrées</strong><span id="admin-certificates-count">—</span></div><label class="admin-certificate-search-label" for="admin-certificate-search">Rechercher</label><input id="admin-certificate-search" type="search" placeholder="Code, nom, reçu…" autocomplete="off" /></div>
+            <div id="admin-certificates-list" class="admin-certificates-list"><p class="admin-empty">Chargement des certificats…</p></div>
+          </div>
+        </div>
+      </section>
       <section class="admin-legal-editor" id="admin-legal-documents" aria-labelledby="admin-legal-title">
         <div class="admin-section-head admin-legal-section-head"><div><span class="admin-kicker">CONTENUS PUBLICS</span><h2 id="admin-legal-title">Documents juridiques</h2><p>Modifiez le texte ici, sans toucher au code. Les changements enregistrés sont visibles sur les pages publiques.</p></div></div>
         <div id="admin-legal-feedback" class="admin-legal-feedback" role="status" aria-live="polite">Chargement des documents…</div>
@@ -59,13 +94,13 @@
           </div>
         </div>
       </section>
-      <section class="admin-requests" aria-labelledby="admin-requests-title">
+      <section id="admin-requests" class="admin-requests" aria-labelledby="admin-requests-title">
         <div class="admin-section-head"><div><span class="admin-kicker">SUIVI DES PAIEMENTS</span><h2 id="admin-requests-title">Participants et formations</h2></div><button id="admin-refresh-button" class="admin-refresh-button" type="button">Actualiser ↻</button></div>
         <div id="admin-feedback" class="admin-feedback" role="status" aria-live="polite"></div>
         <div id="admin-entitlements-list" class="admin-entitlements-list"><p class="admin-empty">Chargement des demandes…</p></div>
       </section>
       <section class="admin-audit" aria-labelledby="admin-audit-title"><div><span class="admin-kicker">TRAÇABILITÉ</span><h2 id="admin-audit-title">Historique des décisions</h2></div><div id="admin-events-list" class="admin-events-list"><p class="admin-empty">Chargement de l’historique…</p></div></section>
-      <p class="admin-security-note"><span>⌑</span> Les droits sont appliqués par le serveur et Supabase RLS ; cette interface ne peut pas contourner la vérification de paiement.</p>
+      <p class="admin-security-note"><span>⌑</span> Les décisions sont authentifiées et journalisées côté serveur. L’accès administrateur au classeur sert aux tests et n’active pas l’accès des participants.</p>
     </section>
   </main>
 

@@ -102,13 +102,110 @@ function publicCertificate(certificate, includePrivate = false) {
   const base = {
     reference: certificate.reference,
     participantName: certificate.participantName,
-    profile: certificate.profile,
+    profile: certificate.profile || '',
     status: certificate.status,
     createdAt: certificate.createdAt,
     validatedAt: certificate.validatedAt || null,
     updatedAt: certificate.updatedAt
   };
-  return includePrivate ? { ...base, birthDate: certificate.birthDate || '', birthPlace: certificate.birthPlace || '', nationality: certificate.nationality || '' } : base;
+  return includePrivate ? { ...base, birthDate: certificate.birthDate || '', birthPlace: certificate.birthPlace || '', nationality: certificate.nationality || '', paymentReference: certificate.paymentReference || '' } : base;
+}
+function certificateFromRow(row) {
+  return {
+    reference: row.reference,
+    participantName: row.participant_name,
+    profile: row.profile || '',
+    birthDate: row.birth_date || '',
+    birthPlace: row.birth_place || '',
+    nationality: row.nationality || '',
+    paymentReference: row.payment_reference || '',
+    status: row.status,
+    createdAt: row.created_at,
+    validatedAt: row.validated_at || null,
+    updatedAt: row.updated_at
+  };
+}
+function normalizeServerCertificate(body) {
+  const values = body && typeof body === 'object' ? body : {};
+  const reference = certificateReference(values.reference);
+  const participantName = String(values.participantName || '').trim().slice(0, 180);
+  const status = values.status == null || values.status === '' ? 'pending' : String(values.status);
+  if (!reference || !participantName) return { error: 'Le code et le nom du participant sont obligatoires.' };
+  if (!['pending', 'validated', 'revoked'].includes(status)) return { error: 'Statut de certificat invalide.' };
+  const certificate = { reference, participantName, status };
+  for (const [input, output, maximum] of [
+    ['profile', 'profile', 80],
+    ['birthDate', 'birthDate', 30],
+    ['birthPlace', 'birthPlace', 120],
+    ['nationality', 'nationality', 80],
+    ['paymentReference', 'paymentReference', 180]
+  ]) {
+    if (!Object.hasOwn(values, input)) continue;
+    const value = String(values[input] || '').trim().slice(0, maximum);
+    certificate[output] = value;
+  }
+  return { certificate };
+}
+async function listSupabaseCertificates(admin) {
+  const query = new URLSearchParams({ select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at', order: 'updated_at.desc', limit: '1000' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`);
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  return (Array.isArray(payload) ? payload : []).map(certificateFromRow);
+}
+async function saveSupabaseCertificate(admin, certificate) {
+  const now = new Date().toISOString();
+  const query = new URLSearchParams({ on_conflict: 'reference', select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`, {
+    method: 'POST',
+    body: {
+      reference: certificate.reference,
+      participant_name: certificate.participantName,
+      status: certificate.status,
+      validated_at: certificate.status === 'validated' ? now : null,
+      updated_by: admin.id,
+      ...(Object.hasOwn(certificate, 'profile') ? { profile: certificate.profile } : {}),
+      ...(Object.hasOwn(certificate, 'birthDate') ? { birth_date: certificate.birthDate } : {}),
+      ...(Object.hasOwn(certificate, 'birthPlace') ? { birth_place: certificate.birthPlace } : {}),
+      ...(Object.hasOwn(certificate, 'nationality') ? { nationality: certificate.nationality } : {}),
+      ...(Object.hasOwn(certificate, 'paymentReference') ? { payment_reference: certificate.paymentReference || null } : {})
+    },
+    prefer: 'resolution=merge-duplicates,return=representation'
+  });
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  const saved = Array.isArray(payload) ? payload[0] : null;
+  if (!saved) throw new Error('Supabase n’a pas retourné le certificat enregistré.');
+  return certificateFromRow(saved);
+}
+async function setSupabaseCertificateStatus(admin, reference, status) {
+  const query = new URLSearchParams({ reference: `eq.${reference}`, select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`, {
+    method: 'PATCH',
+    body: { status, validated_at: status === 'validated' ? new Date().toISOString() : null, updated_by: admin.id },
+    prefer: 'return=representation'
+  });
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  const saved = Array.isArray(payload) ? payload[0] : null;
+  return saved ? certificateFromRow(saved) : null;
+}
+async function verifySupabaseCertificate(reference) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verify_certificate`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ p_reference: reference }),
+    cache: 'no-store'
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+  const row = Array.isArray(payload) ? payload[0] : null;
+  if (!row) return { valid: false, status: 'not_found', reference };
+  return {
+    valid: row.status === 'validated',
+    status: row.status,
+    reference: row.reference,
+    participantName: row.status === 'validated' ? row.participant_name : '',
+    profile: row.status === 'validated' ? row.profile : '',
+    validatedAt: row.validated_at || null
+  };
 }
 async function readUpload(req) {
   const declaredLength = Number(req.headers['content-length'] || 0);
@@ -343,6 +440,13 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && pathname === '/api/certificates/verify') {
     const reference = certificateReference(url.searchParams.get('reference'));
     if (!reference) return json(res, 400, { error: 'Code de certificat manquant.' });
+    if (!AUTH_BYPASS && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      try { return json(res, 200, await verifySupabaseCertificate(reference)); }
+      catch (error) {
+        console.error('Public certificate verification failed:', error.message);
+        return json(res, 503, { error: 'La vérification des certificats est momentanément indisponible.' });
+      }
+    }
     const { certificates } = await getCertificates();
     const certificate = certificates.find((item) => item.reference === reference);
     if (!certificate) return json(res, 200, { valid: false, status: 'not_found', reference });
@@ -486,42 +590,67 @@ async function handleApi(req, res, url) {
   }
 
   if (pathname === '/api/certificates' && req.method === 'GET') {
-    if (!await requireAdministrator(req, res)) return;
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const records = await listSupabaseCertificates(admin);
+        return json(res, 200, { certificates: records.map((certificate) => publicCertificate(certificate, true)) });
+      } catch (error) {
+        console.error('Administrator certificate list failed:', error.message);
+        return json(res, 503, { error: 'Impossible de charger les certificats. Vérifiez la migration Supabase des certificats.' });
+      }
+    }
     const { certificates } = await getCertificates();
     return json(res, 200, { certificates: certificates.map((certificate) => publicCertificate(certificate, true)).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) });
   }
   if (pathname === '/api/certificates' && req.method === 'POST') {
-    if (!await requireAdministrator(req, res)) return;
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
     const body = await requestBody(req);
-    const reference = certificateReference(body.reference);
-    const participantName = String(body.participantName || '').trim().slice(0, 180);
-    const profile = String(body.profile || '').trim().slice(0, 80);
-    if (!reference || !participantName) return json(res, 400, { error: 'Le code et le nom du participant sont obligatoires.' });
-    const status = ['pending', 'validated', 'revoked'].includes(body.status) ? body.status : 'pending';
+    const normalized = normalizeServerCertificate(body);
+    if (normalized.error) return json(res, 400, { error: normalized.error });
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const saved = await saveSupabaseCertificate(admin, normalized.certificate);
+        return json(res, 200, { certificate: publicCertificate(saved, true) });
+      } catch (error) {
+        console.error('Administrator certificate save failed:', error.message);
+        return json(res, 503, { error: 'Le certificat n’a pas pu être enregistré. Vérifiez la configuration et la migration Supabase.' });
+      }
+    }
+    const certificateData = normalized.certificate;
     const now = new Date().toISOString();
     const certificates = await getCertificates();
-    const existing = certificates.certificates.find((certificate) => certificate.reference === reference);
+    const existing = certificates.certificates.find((certificate) => certificate.reference === certificateData.reference);
     if (existing) {
-      existing.participantName = participantName;
-      existing.profile = profile;
-      existing.birthDate = String(body.birthDate || '').slice(0, 30);
-      existing.birthPlace = String(body.birthPlace || '').trim().slice(0, 120);
-      existing.nationality = String(body.nationality || '').trim().slice(0, 80);
-      existing.status = status;
-      existing.validatedAt = status === 'validated' ? (existing.validatedAt || now) : null;
-      existing.updatedAt = now;
+      Object.assign(existing, certificateData, { validatedAt: certificateData.status === 'validated' ? (existing.validatedAt || now) : null, updatedAt: now });
     } else {
-      certificates.certificates.push({ reference, participantName, profile, birthDate: String(body.birthDate || '').slice(0, 30), birthPlace: String(body.birthPlace || '').trim().slice(0, 120), nationality: String(body.nationality || '').trim().slice(0, 80), status, createdAt: now, validatedAt: status === 'validated' ? now : null, updatedAt: now });
+      certificates.certificates.push({ profile: '', birthDate: '', birthPlace: '', nationality: '', paymentReference: '', ...certificateData, createdAt: now, validatedAt: certificateData.status === 'validated' ? now : null, updatedAt: now });
     }
     await saveCertificates(certificates);
-    const saved = certificates.certificates.find((certificate) => certificate.reference === reference);
+    const saved = certificates.certificates.find((certificate) => certificate.reference === certificateData.reference);
     return json(res, existing ? 200 : 201, { certificate: publicCertificate(saved, true) });
   }
   if (pathname.startsWith('/api/certificates/') && req.method === 'PATCH') {
-    if (!await requireAdministrator(req, res)) return;
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
     const reference = certificateReference(pathname.slice('/api/certificates/'.length));
     const body = await requestBody(req);
     if (!['pending', 'validated', 'revoked'].includes(body.status)) return json(res, 400, { error: 'Statut de certificat invalide.' });
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const saved = await setSupabaseCertificateStatus(admin, reference, body.status);
+        if (!saved) return json(res, 404, { error: 'Certificat introuvable.' });
+        return json(res, 200, { certificate: publicCertificate(saved, true) });
+      } catch (error) {
+        console.error('Administrator certificate status update failed:', error.message);
+        return json(res, 503, { error: 'Le statut du certificat n’a pas pu être modifié. Vérifiez la migration Supabase.' });
+      }
+    }
     const certificates = await getCertificates();
     const certificate = certificates.certificates.find((item) => item.reference === reference);
     if (!certificate) return json(res, 404, { error: 'Certificat introuvable.' });
