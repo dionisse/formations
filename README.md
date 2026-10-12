@@ -1,4 +1,4 @@
-# Fiscale — Méthodologie fiscale
+# Fiscalité — Programmes et formations GOBEX
 
 Page web pédagogique en français pour une formation proposée par le Cabinet GOBEX. Le parcours traite de la revue fiscale dans le contexte général et béninois, en 7 séquences, avec une présentation responsive, des illustrations, des infographies et un classeur de revue fiscale qui sert de point d’accès aux fichiers des dossiers.
 
@@ -15,7 +15,7 @@ npm run dev
 
 ## Compte participant du parcours — Supabase et Google
 
-La page `/connexion.html` accueille les participants et affiche, après connexion, leur catalogue de formations. Le bouton **Connexion** de la page principale ouvre également l’accès Google ; Supabase Auth crée le compte lors de la première connexion, sans mot de passe Fiscale. Le catalogue est déclaré sous forme de liste dans `plateforme.js` : chaque formation possède sa propre version, son lien et sa progression. Ajouter un parcours consiste à ajouter une entrée au catalogue et à lui associer sa version de formation.
+La page `/connexion.html` accueille les participants et affiche, après connexion, leur catalogue de formations. Le bouton **Connexion** de la page principale ouvre également l’accès Google ; Supabase Auth crée le compte lors de la première connexion, sans création de mot de passe propre à la plateforme. Le catalogue est déclaré sous forme de liste dans `plateforme.js` : chaque formation possède sa propre version, son lien et sa progression. Ajouter un parcours consiste à ajouter une entrée au catalogue et à lui associer sa version de formation.
 
 Pour la formation fiscale actuelle, la progression et les réponses aux QCM sont synchronisées avec le compte et restent aussi sauvegardées localement si le réseau ou Supabase est indisponible. Chaque ligne distante est propre au couple participant (`user_id`) et formation (`course_version`). Le parcours reprend la progression locale du participant sur cet appareil lorsqu’elle est disponible.
 
@@ -181,18 +181,19 @@ npm test
 npm run build
 ```
 
-Le build Vite inclut les pages d’accueil, de connexion participant, d’administration, de découverte Perfecto, les deux documents juridiques (`confidentialite.html` et `conditions-utilisation.html`) et le classeur (`classeur.html`). Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
+Le build Vite inclut le catalogue d’accueil (`index.html`), les fiches de formation fiscale et du programme Perfecto, les pages de connexion participant et d’administration, les deux documents juridiques (`confidentialite.html` et `conditions-utilisation.html`) et le classeur (`classeur.html`). Pour tester les refus d’accès, lancer le serveur avec Supabase configuré et `AUTH_BYPASS=false` : sans jeton, `/api/dossier` doit répondre `401`; un participant sans règlement confirmé doit recevoir `402`; un participant payé ou l’administrateur vérifié doit recevoir `200`. Ces vérifications réelles nécessitent un projet Supabase configuré.
 
 ## Contenu du dépôt
 
-- `index.html` — page principale, accès au compte participant et parcours en 7 séquences ; le lien vers le classeur se trouve en Séquence 03.
+- `index.html` — page d’accueil et catalogues de programmes et de formations ; le contenu des parcours est présenté sur leurs fiches dédiées.
+- `formation-fiscale.html` — fiche de la formation en méthodologie fiscale et parcours en 7 séquences ; le lien vers le classeur se trouve en Séquence 03.
 - `connexion.html` — connexion Google et catalogue du participant.
 - `plateforme.css` / `plateforme.js` — interface responsive du catalogue et reprise de formation ; `COURSE_CATALOG` est le point d’extension pour les prochains parcours.
 - `admin.html` / `admin.css` / `admin-certificates.css` / `admin.js` — console protégée des paiements, certificats, journal des décisions, documents juridiques et raccourcis vers les espaces de test.
 - `confidentialite.html` / `conditions-utilisation.html` — pages publiques des deux documents ; `legal-documents-data.js` contient leurs textes de référence et `legal-page.js` les charge depuis l’API.
 - `supabase/migrations/20261012160000_legal_documents.sql` — stockage des textes juridiques avec lecture publique et écriture administrateur protégée par RLS.
 - `supabase/migrations/20261012170000_certificate_management.sql` — certificats et journal d’audit privés, plus fonction de vérification publique minimale.
-- `vite.config.js` — build multipage de la page principale, des espaces participant et administrateur et des pages juridiques.
+- `vite.config.js` — build multipage du catalogue d’accueil, des fiches de parcours, des espaces participant et administrateur et des pages juridiques.
 - `styles.css` — direction artistique, illustrations, infographies et responsive design de la page principale.
 - `script.js` — navigation mobile, accordéons, rail de progression, QCM et synchronisation de progression Supabase par participant et formation.
 - `participant-auth.js` — compte participant, connexion Google et déconnexion via Supabase Auth.
@@ -216,9 +217,9 @@ Le build Vite inclut les pages d’accueil, de connexion participant, d’admini
 
 ### Choix de la formation sur la page d’accueil
 
-La page d’accueil s’ouvre sur le catalogue GOBEX : le parcours d’une formation ne s’affiche qu’après son choix par le participant, connecté ou non, car un participant peut suivre plusieurs formations. Le choix est mémorisé par navigateur (`fiscale-home-selected-courses-v1`) et le catalogue reste accessible à tout moment pour changer de formation ; la carte concernée indique alors « Reprendre la formation ».
+La page d’accueil affiche uniquement les catalogues de programmes et de formations. Le contenu pédagogique n’est visible qu’après avoir choisi une fiche ; chaque catalogue renvoie vers la page dédiée du parcours.
 
-Les liens directs vers le contenu d’un parcours — `/#programme`, `/#sequence-03`, les ancres du programme ou de l’évaluation — ouvrent d’eux-mêmes la formation concernée : l’espace participant, le classeur et la navigation continuent donc de fonctionner sans détour. Sans JavaScript, la page affiche le parcours complet comme auparavant.
+Le contenu d’un parcours est affiché sur sa propre page, après sélection depuis le catalogue : `/formation-fiscale.html` pour la formation fiscale et `/perfecto.html` pour le programme Perfecto. Les liens directs vers une séquence utilisent les ancres de la page du parcours, par exemple `/formation-fiscale.html#sequence-03`. Le lien développeur est `/formation-fiscale.html?mode=developer#programme`.
 
 ### Mode développeur du parcours pédagogique
 

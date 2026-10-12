@@ -8,7 +8,7 @@ const COURSE_CATALOG = [
     sequenceCount: 7,
     durationLabel: '7 séquences',
     certificatePaymentUrl: 'https://goespay.io/pay/FJK9BGDH',
-    actionUrl: '/#programme',
+    actionUrl: '/formation-fiscale.html#programme',
     actionLabel: 'Reprendre la formation',
     visualLabel: 'CABINET GOBEX · SÉMINAIRE',
     visualNumber: '07',

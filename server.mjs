@@ -800,4 +800,4 @@ const server = http.createServer(async (req, res) => {
     if (status === 500) console.error('Unhandled server request error:', error);
   }
 });
-server.listen(PORT, HOST, () => console.log(`Fiscale secure server running on http://${HOST}:${PORT}${AUTH_BYPASS ? ' (mode développement : accès administrateur simulé)' : ''}`));
+server.listen(PORT, HOST, () => console.log(`Fiscalité secure server running on http://${HOST}:${PORT}${AUTH_BYPASS ? ' (mode développement : accès administrateur simulé)' : ''}`));

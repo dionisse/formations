@@ -30,10 +30,10 @@ assert.ok(adminPage.window.document.querySelector('#admin-certificate-form'));
 assert.ok(adminPage.window.document.querySelector('#admin-certificate-reference[required]'));
 assert.equal(adminPage.window.document.querySelectorAll('#admin-certificate-status option').length, 3);
 assert.ok(adminPage.window.document.querySelector('.admin-quick-tools a[href="/classeur.html"]'));
-assert.ok(adminPage.window.document.querySelector('.admin-quick-tools a[href="/index.html?mode=developer#programme"]'));
+assert.ok(adminPage.window.document.querySelector('.admin-quick-tools a[href="/formation-fiscale.html?mode=developer#programme"]'));
 adminPage.window.close();
 
-for (const file of ['index.html', 'connexion.html', 'perfecto.html', 'admin.html']) {
+for (const file of ['index.html', 'formation-fiscale.html', 'connexion.html', 'perfecto.html', 'admin.html']) {
   const page = new JSDOM(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'));
   assert.ok(page.window.document.querySelector('footer a[href="/confidentialite.html"]'), `${file} doit lier la politique`);
   assert.ok(page.window.document.querySelector('footer a[href="/conditions-utilisation.html"]'), `${file} doit lier les conditions`);

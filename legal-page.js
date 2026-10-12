@@ -12,8 +12,8 @@ const description = document.querySelector('meta[name="description"]');
 
 function displayDocument(item, isFallback = false) {
   title.textContent = item.title;
-  document.title = `${item.title} · Fiscale`;
-  if (description) description.content = `${item.title} de l’application Fiscale proposée par le Cabinet GOBEX.`;
+  document.title = `${item.title} · Fiscalité`;
+  if (description) description.content = `${item.title} de l’application Fiscalité proposée par le Cabinet GOBEX.`;
   renderLegalText(content, item.content);
 
   if (item.updatedAt) {
