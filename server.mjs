@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { LEGAL_DOCUMENTS, LEGAL_DOCUMENT_MAX_LENGTH, mergeLegalDocuments } from './legal-documents-data.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 try {
@@ -30,6 +31,7 @@ const dossierPath = path.join(ROOT, 'private', 'dossier-data.json');
 const fileStoragePath = path.join(ROOT, 'storage', 'dossier-files');
 const fileIndexPath = path.join(ROOT, 'storage', 'file-index.json');
 const certificatesPath = path.join(ROOT, 'storage', 'certificates.json');
+const legalDocumentsPath = path.join(ROOT, 'storage', 'legal-documents.json');
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const SAFE_INLINE_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'text/plain']);
 const MIME_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -60,6 +62,39 @@ async function saveCertificates(certificates) {
   await fs.mkdir(path.dirname(certificatesPath), { recursive: true });
   await fs.writeFile(certificatesPath, JSON.stringify(certificates, null, 2));
 }
+async function getLocalLegalDocuments() {
+  try {
+    const saved = await readJson(legalDocumentsPath);
+    return { documents: mergeLegalDocuments(saved.documents), source: 'local' };
+  } catch {
+    return { documents: mergeLegalDocuments(), source: 'defaults' };
+  }
+}
+async function saveLocalLegalDocument(document) {
+  const current = await getLocalLegalDocuments();
+  const updated = { ...document, updatedAt: new Date().toISOString() };
+  const documents = current.documents.map((item) => item.slug === document.slug ? updated : item);
+  await fs.mkdir(path.dirname(legalDocumentsPath), { recursive: true });
+  await fs.writeFile(legalDocumentsPath, JSON.stringify({ documents }, null, 2));
+  return updated;
+}
+async function readServerLegalDocuments(user = null) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { documents: mergeLegalDocuments(), source: 'defaults' };
+  const query = new URLSearchParams({ select: 'slug,title,content,updated_at', order: 'slug.asc' });
+  let response;
+  let payload;
+  if (user) {
+    ({ response, payload } = await supabaseRest(user, `legal_documents?${query}`));
+  } else {
+    response = await fetch(`${SUPABASE_URL}/rest/v1/legal_documents?${query}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, Accept: 'application/json' },
+      cache: 'no-store'
+    });
+    payload = await response.json().catch(() => null);
+  }
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+  return { documents: mergeLegalDocuments(Array.isArray(payload) ? payload : []), source: 'supabase' };
+}
 function certificateReference(value) {
   return String(value || '').trim().replace(/[^A-Za-z0-9-]/g, '').slice(0, 100);
 }
@@ -67,13 +102,124 @@ function publicCertificate(certificate, includePrivate = false) {
   const base = {
     reference: certificate.reference,
     participantName: certificate.participantName,
-    profile: certificate.profile,
+    profile: certificate.profile || '',
     status: certificate.status,
     createdAt: certificate.createdAt,
     validatedAt: certificate.validatedAt || null,
     updatedAt: certificate.updatedAt
   };
-  return includePrivate ? { ...base, birthDate: certificate.birthDate || '', birthPlace: certificate.birthPlace || '', nationality: certificate.nationality || '' } : base;
+  return includePrivate ? { ...base, birthDate: certificate.birthDate || '', birthPlace: certificate.birthPlace || '', nationality: certificate.nationality || '', paymentReference: certificate.paymentReference || '' } : base;
+}
+function certificateFromRow(row) {
+  return {
+    reference: row.reference,
+    participantName: row.participant_name,
+    profile: row.profile || '',
+    birthDate: row.birth_date || '',
+    birthPlace: row.birth_place || '',
+    nationality: row.nationality || '',
+    paymentReference: row.payment_reference || '',
+    status: row.status,
+    createdAt: row.created_at,
+    validatedAt: row.validated_at || null,
+    updatedAt: row.updated_at
+  };
+}
+function normalizeServerCertificate(body) {
+  const values = body && typeof body === 'object' ? body : {};
+  const reference = certificateReference(values.reference);
+  const participantName = String(values.participantName || '').trim().slice(0, 180);
+  const status = values.status == null || values.status === '' ? 'pending' : String(values.status);
+  if (!reference || !participantName) return { error: 'Le code et le nom du participant sont obligatoires.' };
+  if (!['pending', 'validated', 'revoked'].includes(status)) return { error: 'Statut de certificat invalide.' };
+  const certificate = { reference, participantName, status };
+  for (const [input, output, maximum] of [
+    ['profile', 'profile', 80],
+    ['birthDate', 'birthDate', 30],
+    ['birthPlace', 'birthPlace', 120],
+    ['nationality', 'nationality', 80],
+    ['paymentReference', 'paymentReference', 180]
+  ]) {
+    if (!Object.hasOwn(values, input)) continue;
+    const value = String(values[input] || '').trim().slice(0, maximum);
+    certificate[output] = value;
+  }
+  return { certificate };
+}
+async function listSupabaseCertificates(admin) {
+  const query = new URLSearchParams({ select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at', order: 'updated_at.desc', limit: '1000' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`);
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  return (Array.isArray(payload) ? payload : []).map(certificateFromRow);
+}
+async function saveSupabaseCertificate(admin, certificate) {
+  const now = new Date().toISOString();
+  const query = new URLSearchParams({ on_conflict: 'reference', select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`, {
+    method: 'POST',
+    body: {
+      reference: certificate.reference,
+      participant_name: certificate.participantName,
+      status: certificate.status,
+      validated_at: certificate.status === 'validated' ? now : null,
+      updated_by: admin.id,
+      ...(Object.hasOwn(certificate, 'profile') ? { profile: certificate.profile } : {}),
+      ...(Object.hasOwn(certificate, 'birthDate') ? { birth_date: certificate.birthDate } : {}),
+      ...(Object.hasOwn(certificate, 'birthPlace') ? { birth_place: certificate.birthPlace } : {}),
+      ...(Object.hasOwn(certificate, 'nationality') ? { nationality: certificate.nationality } : {}),
+      ...(Object.hasOwn(certificate, 'paymentReference') ? { payment_reference: certificate.paymentReference || null } : {})
+    },
+    prefer: 'resolution=merge-duplicates,return=representation'
+  });
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  const saved = Array.isArray(payload) ? payload[0] : null;
+  if (!saved) throw new Error('Supabase n’a pas retourné le certificat enregistré.');
+  return certificateFromRow(saved);
+}
+async function setSupabaseCertificateStatus(admin, reference, status) {
+  const query = new URLSearchParams({ reference: `eq.${reference}`, select: 'reference,participant_name,profile,birth_date,birth_place,nationality,payment_reference,status,created_at,validated_at,updated_at' });
+  const { response, payload } = await supabaseRest(admin, `certificates?${query}`, {
+    method: 'PATCH',
+    body: { status, validated_at: status === 'validated' ? new Date().toISOString() : null, updated_by: admin.id },
+    prefer: 'return=representation'
+  });
+  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+  const saved = Array.isArray(payload) ? payload[0] : null;
+  return saved ? certificateFromRow(saved) : null;
+}
+async function verifySupabaseCertificate(reference) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verify_certificate`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ p_reference: reference }),
+    cache: 'no-store'
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+  const row = Array.isArray(payload) ? payload[0] : null;
+  if (!row) return { valid: false, status: 'not_found', reference };
+  return {
+    valid: row.status === 'validated',
+    status: row.status,
+    reference: row.reference,
+    participantName: row.status === 'validated' ? row.participant_name : '',
+    profile: row.status === 'validated' ? row.profile : '',
+    validatedAt: row.validated_at || null
+  };
+}
+async function lookupCertificate(reference) {
+  if (!AUTH_BYPASS && SUPABASE_URL && SUPABASE_ANON_KEY) return verifySupabaseCertificate(reference);
+  const { certificates } = await getCertificates();
+  const certificate = certificates.find((item) => item.reference === reference);
+  if (!certificate) return { valid: false, status: 'not_found', reference };
+  return {
+    valid: certificate.status === 'validated',
+    status: certificate.status,
+    reference: certificate.reference,
+    participantName: certificate.status === 'validated' ? certificate.participantName : '',
+    profile: certificate.status === 'validated' ? certificate.profile : '',
+    validatedAt: certificate.validatedAt || null
+  };
 }
 async function readUpload(req) {
   const declaredLength = Number(req.headers['content-length'] || 0);
@@ -207,6 +353,18 @@ async function requestBody(req) {
   for await (const chunk of req) { body += chunk; if (body.length > 64 * 1024) throw new Error('payload_too_large'); }
   return body ? JSON.parse(body) : {};
 }
+function normalizeLegalDocument(body) {
+  const slug = String(body?.slug || '').trim();
+  const title = typeof body?.title === 'string' ? body.title.replace(/\s+/g, ' ').trim() : '';
+  const content = typeof body?.content === 'string'
+    ? body.content.replace(/\r\n?/g, '\n').replace(/\u0000/g, '').trim()
+    : '';
+  if (!LEGAL_DOCUMENTS.some((document) => document.slug === slug)) return { error: 'Document juridique inconnu.' };
+  if (!title || title.length > 180) return { error: 'Le titre est obligatoire et doit contenir au plus 180 caractères.' };
+  if (!content) return { error: 'Le texte du document ne peut pas être vide.' };
+  if (content.length > LEGAL_DOCUMENT_MAX_LENGTH) return { error: `Le texte dépasse la limite de ${LEGAL_DOCUMENT_MAX_LENGTH} caractères.`, status: 413 };
+  return { document: { slug, title, content } };
+}
 
 function hasFolder(folderId, dossier) {
   return dossier.folders.some((folder) => folder.id === folderId || (folder.children || []).some((child) => child.id === folderId));
@@ -227,24 +385,83 @@ async function saveUploadedContent(req, file) {
 
 async function handleApi(req, res, url) {
   const pathname = url.pathname;
+  if (pathname === '/api/legal-documents') {
+    if (req.method !== 'GET') return json(res, 405, { error: 'Méthode non autorisée.' }, { Allow: 'GET' });
+    try {
+      const result = AUTH_BYPASS ? await getLocalLegalDocuments() : await readServerLegalDocuments();
+      return json(res, 200, result);
+    } catch (error) {
+      console.error('Public legal documents lookup failed:', error.message);
+      return json(res, 503, { error: 'Les documents juridiques ne peuvent pas être chargés pour le moment.' });
+    }
+  }
+
+  if (pathname === '/api/admin/legal-documents') {
+    if (!['GET', 'PUT'].includes(req.method)) return json(res, 405, { error: 'Méthode non autorisée.' }, { Allow: 'GET, PUT' });
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
+
+    if (req.method === 'GET') {
+      try {
+        const result = admin.developmentBypass ? await getLocalLegalDocuments() : await readServerLegalDocuments(admin);
+        return json(res, 200, result);
+      } catch (error) {
+        console.error('Administrator legal documents lookup failed:', error.message);
+        return json(res, 503, { error: 'Impossible de charger les documents. Vérifiez la migration Supabase des documents juridiques.' });
+      }
+    }
+
+    let body;
+    try { body = await requestBody(req); }
+    catch (error) {
+      const status = error.message === 'payload_too_large' ? 413 : 400;
+      return json(res, status, { error: status === 413 ? 'Texte trop volumineux.' : 'Le contenu reçu est invalide.' });
+    }
+    const normalized = normalizeLegalDocument(body);
+    if (normalized.error) return json(res, normalized.status || 400, { error: normalized.error });
+
+    if (admin.developmentBypass) {
+      const saved = await saveLocalLegalDocument(normalized.document);
+      return json(res, 200, { document: saved });
+    }
+
+    try {
+      const query = new URLSearchParams({ on_conflict: 'slug', select: 'slug,title,content,updated_at' });
+      const { response, payload } = await supabaseRest(admin, `legal_documents?${query}`, {
+        method: 'POST',
+        body: normalized.document,
+        prefer: 'resolution=merge-duplicates,return=representation'
+      });
+      if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
+      const saved = Array.isArray(payload) ? payload[0] : null;
+      if (!saved) throw new Error('Supabase n’a pas retourné le document enregistré.');
+      return json(res, 200, { document: {
+        slug: saved.slug,
+        title: saved.title,
+        content: saved.content,
+        updatedAt: saved.updated_at || null
+      } });
+    } catch (error) {
+      console.error('Administrator legal document update failed:', error.message);
+      return json(res, 503, { error: 'Le document n’a pas pu être enregistré. Vérifiez la configuration et la migration Supabase.' });
+    }
+  }
+
   if (req.method === 'GET' && pathname === '/api/public-config') {
     return json(res, 200, { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY });
   }
 
-  if (req.method === 'GET' && pathname === '/api/certificates/verify') {
+  if (req.method === 'GET' && (
+    pathname === '/api/certificates/verify'
+    || (pathname === '/api/certificates' && url.searchParams.get('verify') === '1')
+  )) {
     const reference = certificateReference(url.searchParams.get('reference'));
     if (!reference) return json(res, 400, { error: 'Code de certificat manquant.' });
-    const { certificates } = await getCertificates();
-    const certificate = certificates.find((item) => item.reference === reference);
-    if (!certificate) return json(res, 200, { valid: false, status: 'not_found', reference });
-    return json(res, 200, {
-      valid: certificate.status === 'validated',
-      status: certificate.status,
-      reference: certificate.reference,
-      participantName: certificate.status === 'validated' ? certificate.participantName : '',
-      profile: certificate.status === 'validated' ? certificate.profile : '',
-      validatedAt: certificate.validatedAt || null
-    });
+    try { return json(res, 200, await lookupCertificate(reference)); }
+    catch (error) {
+      console.error('Public certificate verification failed:', error.message);
+      return json(res, 503, { error: 'La vérification des certificats est momentanément indisponible.' });
+    }
   }
 
   if (req.method === 'GET' && pathname === '/api/session') {
@@ -377,42 +594,71 @@ async function handleApi(req, res, url) {
   }
 
   if (pathname === '/api/certificates' && req.method === 'GET') {
-    if (!await requireAdministrator(req, res)) return;
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const records = await listSupabaseCertificates(admin);
+        return json(res, 200, { certificates: records.map((certificate) => publicCertificate(certificate, true)) });
+      } catch (error) {
+        console.error('Administrator certificate list failed:', error.message);
+        return json(res, 503, { error: 'Impossible de charger les certificats. Vérifiez la migration Supabase des certificats.' });
+      }
+    }
     const { certificates } = await getCertificates();
     return json(res, 200, { certificates: certificates.map((certificate) => publicCertificate(certificate, true)).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) });
   }
   if (pathname === '/api/certificates' && req.method === 'POST') {
-    if (!await requireAdministrator(req, res)) return;
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
     const body = await requestBody(req);
-    const reference = certificateReference(body.reference);
-    const participantName = String(body.participantName || '').trim().slice(0, 180);
-    const profile = String(body.profile || '').trim().slice(0, 80);
-    if (!reference || !participantName) return json(res, 400, { error: 'Le code et le nom du participant sont obligatoires.' });
-    const status = ['pending', 'validated', 'revoked'].includes(body.status) ? body.status : 'pending';
+    const normalized = normalizeServerCertificate(body);
+    if (normalized.error) return json(res, 400, { error: normalized.error });
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const saved = await saveSupabaseCertificate(admin, normalized.certificate);
+        return json(res, 200, { certificate: publicCertificate(saved, true) });
+      } catch (error) {
+        console.error('Administrator certificate save failed:', error.message);
+        return json(res, 503, { error: 'Le certificat n’a pas pu être enregistré. Vérifiez la configuration et la migration Supabase.' });
+      }
+    }
+    const certificateData = normalized.certificate;
     const now = new Date().toISOString();
     const certificates = await getCertificates();
-    const existing = certificates.certificates.find((certificate) => certificate.reference === reference);
+    const existing = certificates.certificates.find((certificate) => certificate.reference === certificateData.reference);
     if (existing) {
-      existing.participantName = participantName;
-      existing.profile = profile;
-      existing.birthDate = String(body.birthDate || '').slice(0, 30);
-      existing.birthPlace = String(body.birthPlace || '').trim().slice(0, 120);
-      existing.nationality = String(body.nationality || '').trim().slice(0, 80);
-      existing.status = status;
-      existing.validatedAt = status === 'validated' ? (existing.validatedAt || now) : null;
-      existing.updatedAt = now;
+      Object.assign(existing, certificateData, { validatedAt: certificateData.status === 'validated' ? (existing.validatedAt || now) : null, updatedAt: now });
     } else {
-      certificates.certificates.push({ reference, participantName, profile, birthDate: String(body.birthDate || '').slice(0, 30), birthPlace: String(body.birthPlace || '').trim().slice(0, 120), nationality: String(body.nationality || '').trim().slice(0, 80), status, createdAt: now, validatedAt: status === 'validated' ? now : null, updatedAt: now });
+      certificates.certificates.push({ profile: '', birthDate: '', birthPlace: '', nationality: '', paymentReference: '', ...certificateData, createdAt: now, validatedAt: certificateData.status === 'validated' ? now : null, updatedAt: now });
     }
     await saveCertificates(certificates);
-    const saved = certificates.certificates.find((certificate) => certificate.reference === reference);
+    const saved = certificates.certificates.find((certificate) => certificate.reference === certificateData.reference);
     return json(res, existing ? 200 : 201, { certificate: publicCertificate(saved, true) });
   }
-  if (pathname.startsWith('/api/certificates/') && req.method === 'PATCH') {
-    if (!await requireAdministrator(req, res)) return;
-    const reference = certificateReference(pathname.slice('/api/certificates/'.length));
+  if ((pathname === '/api/certificates' || pathname.startsWith('/api/certificates/')) && req.method === 'PATCH') {
+    const admin = await requireAdministrator(req, res);
+    if (!admin) return;
+    const rawReference = pathname === '/api/certificates'
+      ? url.searchParams.get('reference')
+      : pathname.slice('/api/certificates/'.length);
+    const reference = certificateReference(rawReference);
+    if (!reference) return json(res, 400, { error: 'Code de certificat invalide.' });
     const body = await requestBody(req);
     if (!['pending', 'validated', 'revoked'].includes(body.status)) return json(res, 400, { error: 'Statut de certificat invalide.' });
+    if (!admin.developmentBypass) {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return json(res, 503, { error: 'La gestion des certificats nécessite une configuration Supabase.' });
+      try {
+        const saved = await setSupabaseCertificateStatus(admin, reference, body.status);
+        if (!saved) return json(res, 404, { error: 'Certificat introuvable.' });
+        return json(res, 200, { certificate: publicCertificate(saved, true) });
+      } catch (error) {
+        console.error('Administrator certificate status update failed:', error.message);
+        return json(res, 503, { error: 'Le statut du certificat n’a pas pu être modifié. Vérifiez la migration Supabase.' });
+      }
+    }
     const certificates = await getCertificates();
     const certificate = certificates.certificates.find((item) => item.reference === reference);
     if (!certificate) return json(res, 404, { error: 'Certificat introuvable.' });
@@ -554,4 +800,4 @@ const server = http.createServer(async (req, res) => {
     if (status === 500) console.error('Unhandled server request error:', error);
   }
 });
-server.listen(PORT, HOST, () => console.log(`Fiscale secure server running on http://${HOST}:${PORT}${AUTH_BYPASS ? ' (mode développement : accès administrateur simulé)' : ''}`));
+server.listen(PORT, HOST, () => console.log(`Fiscalité secure server running on http://${HOST}:${PORT}${AUTH_BYPASS ? ' (mode développement : accès administrateur simulé)' : ''}`));

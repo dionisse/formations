@@ -1,19 +1,19 @@
 /* test-ui-display — non-régression des affichages signalés sur les captures mobiles :
    dépliage des séquences, rendu des cas pratiques et des QCM, états masqués,
    empilement des cheminement et carte ressources. Les tests exécutent la vraie
-   page (index.html + script.js) dans un DOM jsdom et contrôlent aussi les
+   page (formation-fiscale.html + script.js) dans un DOM jsdom et contrôlent aussi les
    garde-fous CSS qui ne peuvent pas être simulés sans moteur de mise en page. */
 
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
 const root = new URL('../', import.meta.url);
-const html = readFileSync(new URL('index.html', root), 'utf8');
+const html = readFileSync(new URL('formation-fiscale.html', root), 'utf8');
 const script = readFileSync(new URL('script.js', root), 'utf8');
 const css = readFileSync(new URL('styles.css', root), 'utf8');
 
 const dom = new JSDOM(html, {
-  url: 'http://localhost:4173/',
+  url: 'http://localhost:4173/formation-fiscale.html',
   runScripts: 'outside-only',
   pretendToBeVisual: true
 });

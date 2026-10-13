@@ -1527,7 +1527,7 @@ if (quizForm7) {
     verifyButton.disabled = true;
     setValidationStatus('Vérification de l’état auprès du cabinet…', 'pending');
     try {
-      const response = await fetch(`/api/certificates/verify?reference=${encodeURIComponent(reference)}`, { cache: 'no-store' });
+      const response = await fetch(`/api/certificates?verify=1&reference=${encodeURIComponent(reference)}`, { cache: 'no-store' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'verification_failed');
       state.validated = result.valid === true;
@@ -1629,7 +1629,7 @@ if (quizForm7) {
 
   async function changeDeveloperStatus(reference, status) {
     try {
-      await parseResponse(await fetch(`/api/certificates/${encodeURIComponent(reference)}`, { method: 'PATCH', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) }));
+      await parseResponse(await fetch(`/api/certificates?reference=${encodeURIComponent(reference)}`, { method: 'PATCH', headers: await adminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) }));
       developerMessage.textContent = `Certificat ${reference} : ${developerStatusLabel(status)}.`;
       await loadDeveloperCertificates();
     } catch (error) {
@@ -1830,76 +1830,4 @@ if (finalQuizForm) {
   } catch (error) {
     revealNodes.forEach((node) => node.classList.add('is-visible'));
   }
-})();
-
-/* Accueil : le parcours d'une formation s'ouvre après son choix dans le catalogue GOBEX.
-   Le choix est mémorisé par navigateur, connecté ou non, et le catalogue reste accessible. */
-(() => {
-  const courseStage = document.querySelector('.course-stage[data-course-version]');
-  if (!courseStage) return;
-
-  const courseVersion = courseStage.dataset.courseVersion;
-  const selectionStorageKey = 'fiscale-home-selected-courses-v1';
-
-  function readSelectedCourses() {
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(selectionStorageKey) || '[]');
-      return Array.isArray(stored) ? stored.filter((value) => typeof value === 'string') : [];
-    } catch (error) {
-      return [];
-    }
-  }
-
-  function rememberSelectedCourse(version) {
-    const selected = readSelectedCourses();
-    if (selected.includes(version)) return;
-    try {
-      window.localStorage.setItem(selectionStorageKey, JSON.stringify([...selected, version]));
-    } catch (error) {
-      /* Le parcours reste ouvert pour la session si le stockage local est indisponible. */
-    }
-  }
-
-  function syncCourseSelection() {
-    const selected = readSelectedCourses().includes(courseVersion);
-    document.querySelectorAll(`[data-course-select="${courseVersion}"] [data-course-select-label]`).forEach((label) => {
-      label.textContent = selected ? 'Reprendre la formation' : 'Commencer la formation';
-    });
-  }
-
-  function courseTargetFromHash(hash) {
-    const id = String(hash || '').replace('#', '');
-    if (!id) return null;
-    const target = document.getElementById(id);
-    return target && courseStage.contains(target) ? target : null;
-  }
-
-  function openCourseStage(target) {
-    const wasGated = document.documentElement.classList.contains('course-gated');
-    document.documentElement.classList.remove('course-gated');
-    syncCourseSelection();
-    if (!wasGated || !target) return;
-    window.requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }
-
-  document.addEventListener('click', (event) => {
-    const element = event.target instanceof Element ? event.target : null;
-    const link = element ? element.closest('a[href^="#"]') : null;
-    if (!link) return;
-    const target = courseTargetFromHash(link.getAttribute('href'));
-    if (!target) return;
-    rememberSelectedCourse(courseVersion);
-    if (!document.documentElement.classList.contains('course-gated')) return;
-    event.preventDefault();
-    openCourseStage(target);
-  });
-
-  window.addEventListener('hashchange', () => {
-    const target = courseTargetFromHash(window.location.hash);
-    if (!target) return;
-    rememberSelectedCourse(courseVersion);
-    openCourseStage(target);
-  });
-
-  syncCourseSelection();
 })();

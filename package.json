@@ -11,7 +11,7 @@
     "predev": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
     "preserver": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
     "prebuild": "node scripts/prepare-supabase-vendor.mjs && node scripts/prepare-serverless-data.mjs",
-    "test": "node scripts/prepare-serverless-data.mjs && node scripts/test-api-functions.mjs && node scripts/test-drive-module.mjs && node scripts/test-ui-display.mjs"
+    "test": "node scripts/prepare-serverless-data.mjs && node scripts/test-api-functions.mjs && node scripts/test-legal-documents.mjs && node scripts/test-legal-documents-api.mjs && node scripts/test-certificates-api.mjs && node scripts/test-admin-certificates-ui.mjs && node scripts/test-drive-module.mjs && node scripts/test-home-catalogue.mjs && node scripts/test-perfecto-program.mjs && node scripts/test-ui-display.mjs"
   },
   "devDependencies": {
     "jsdom": "^30.1.2",
@@ -21,6 +21,6 @@
     "@supabase/supabase-js": "2.117.3"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   }
 }
