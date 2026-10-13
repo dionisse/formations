@@ -13,6 +13,10 @@ npm run dev
 
 `npm run server` lance également ce serveur. Puis ouvrir [http://localhost:4173](http://localhost:4173).
 
+## Build et installation sur Vercel
+
+Le fichier `vercel.json` fixe la commande d’installation à `npm ci --include=dev --no-audit --no-fund --progress=false`, donc les dépendances sont installées depuis `package-lock.json` sans audit réseau, puis lance `npm run build` et publie `dist/`. Le runtime reste Node.js 22.x via `.nvmrc` et `package.json`. Si le projet Vercel a une commande d’installation personnalisée dans **Settings → Build and Deployment**, la supprimer ou l’aligner sur celle du dépôt afin qu’elle ne remplace pas cette configuration.
+
 ## Compte participant du parcours — Supabase et Google
 
 La page `/connexion.html` accueille les participants et affiche, après connexion, leur catalogue de formations. Le bouton **Connexion** de la page principale ouvre également l’accès Google ; Supabase Auth crée le compte lors de la première connexion, sans création de mot de passe propre à la plateforme. Le catalogue est déclaré sous forme de liste dans `plateforme.js` : chaque formation possède sa propre version, son lien et sa progression. Ajouter un parcours consiste à ajouter une entrée au catalogue et à lui associer sa version de formation.
